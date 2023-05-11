@@ -6,7 +6,12 @@
  */
 
 import React from 'react';
-import type {PropsWithChildren} from 'react';
+import type { PropsWithChildren } from 'react';
+import { BleManager } from 'react-native-ble-plx';
+import { useEffect, useState } from 'react';
+import { FlatList, Button, PermissionsAndroid } from 'react-native';
+import { Buffer } from 'buffer';
+
 import {
   SafeAreaView,
   ScrollView,
@@ -29,7 +34,7 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({children, title}: SectionProps): JSX.Element {
+function Section({ children, title }: SectionProps): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
@@ -56,11 +61,116 @@ function Section({children, title}: SectionProps): JSX.Element {
 }
 
 function App(): JSX.Element {
+  const [manager, setManager] = useState(new BleManager());
+  const [device, setDevice] = useState(null);
+  const [data, setData] = useState(null);
+  const [devices, setDevices] = useState([]);
+
   const isDarkMode = useColorScheme() === 'dark';
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
+
+  async function requestPermissions() {
+    console.log("called requestPermissions");
+    try {
+      const granted = await PermissionsAndroid.requestMultiple(
+        [
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        ],
+        {
+          title: "Bluetooth LE App Permission",
+          message: "BLE App needs access to your Bluetooth and location ",
+          buttonNeutral: "Ask Me Later",
+          buttonNegative: "Cancel",
+          buttonPositive: "OK"
+        }
+      );
+  
+      if (
+        granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED
+      ) {
+        console.log("You can use the BLE ");
+      } else {
+        console.log("Bluetooth and location permission denied");
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+  
+
+  useEffect(() => {
+    requestPermissions();
+  }, []);
+
+  const scanAndConnect = () => {
+    console.log('Scan started');
+    setDevices([]);
+
+    manager.startDeviceScan(null, null, (error, device) => {
+      if (error) {
+        console.log('Error during scan:', error);
+        if (error.reason) {
+          console.log('Error reason:', error.reason);
+        }
+        return;
+      }
+
+      console.log('Device found:', device.name || 'Unnamed', '-', device.id);
+      setDevices((prevDevices) => [...prevDevices, device]);
+
+      if (device.name === 'Your_Device_Name') {
+        console.log('Target device found, stopping scan and attempting connection...');
+        manager.stopDeviceScan();
+
+        device
+          .connect()
+          .then((device) => {
+            console.log('Connected to device, discovering services and characteristics...');
+            return device.discoverAllServicesAndCharacteristics();
+          })
+          .then((device) => {
+            console.log('Monitoring for characteristic updates...');
+            device.monitorCharacteristicForService(
+              'Your_Service_UUID',
+              'Your_Characteristic_UUID',
+              (error, characteristic) => {
+                if (error) {
+                  console.error('Error monitoring characteristic:', error);
+                  return;
+                }
+                if (characteristic) {
+                  const data = Buffer.from(characteristic.value, 'base64').toString('ascii');
+                  console.log('Received data:', data);
+                  setData(data);
+                }
+              }
+            );
+          })
+          .catch((error) => {
+            console.log('Error during device connection or service discovery:', error);
+          });
+      }
+    });
+  };
+
+
+  useEffect(() => {
+    const subscription = manager.onStateChange((state) => {
+      if (state === 'PoweredOn') {
+        scanAndConnect();
+      }
+    }, true);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
     <SafeAreaView style={backgroundStyle}>
@@ -68,14 +178,24 @@ function App(): JSX.Element {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
+      <View style={backgroundStyle}>
         <Header />
+        <Button title="Start Scan" onPress={scanAndConnect} />
         <View
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
+          <Section title="BLE Devices">
+            <FlatList
+              data={devices}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <Text style={styles.sectionDescription}>
+                  {item.name || 'Unnamed Device'} - {item.id}
+                </Text>
+              )}
+            />
+          </Section>
           <Section title="Step One">
             Edit <Text style={styles.highlight}>App.tsx</Text> to change this
             screen and then come back to see your edits.
@@ -91,7 +211,7 @@ function App(): JSX.Element {
           </Section>
           <LearnMoreLinks />
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
