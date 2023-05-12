@@ -67,6 +67,8 @@ function App(): JSX.Element {
   const [devices, setDevices] = useState([]);
 
   const isDarkMode = useColorScheme() === 'dark';
+  const smartWatchMac = '90:F1:57:BE:DF:5E';
+  const treadmilMac = "FE:FA:59:F4:B9:B1";
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -123,9 +125,11 @@ function App(): JSX.Element {
       }
 
       console.log('Device found:', device.name || 'Unnamed', '-', device.id);
-      setDevices((prevDevices) => [...prevDevices, device]);
+      //setDevices((prevDevices) => [...prevDevices, device]);
 
-      if (device.name === 'Your_Device_Name') {
+
+
+      if (device.id === smartWatchMac) {
         console.log('Target device found, stopping scan and attempting connection...');
         manager.stopDeviceScan();
 
@@ -138,15 +142,15 @@ function App(): JSX.Element {
           .then((device) => {
             console.log('Monitoring for characteristic updates...');
             device.monitorCharacteristicForService(
-              'Your_Service_UUID',
-              'Your_Characteristic_UUID',
+              '180D', 
+              '2A37',
               (error, characteristic) => {
                 if (error) {
                   console.error('Error monitoring characteristic:', error);
                   return;
                 }
                 if (characteristic) {
-                  const data = Buffer.from(characteristic.value, 'base64').toString('ascii');
+                  const data = Buffer.from(characteristic.value, 'base64')[1]//.toString('ascii');
                   console.log('Received data:', data);
                   setData(data);
                 }
@@ -180,22 +184,18 @@ function App(): JSX.Element {
       />
       <View style={backgroundStyle}>
         <Header />
-        <Button title="Start Scan" onPress={scanAndConnect} />
         <View
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
-          <Section title="BLE Devices">
-            <FlatList
-              data={devices}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <Text style={styles.sectionDescription}>
-                  {item.name || 'Unnamed Device'} - {item.id}
-                </Text>
-              )}
-            />
+          <Section title="Heart Rate">
+            Heart Rate: {data}
           </Section>
+          <Section title="Treadmill Status">
+            Speed: 0.0
+            Incline: 0
+          </Section>
+    
           <Section title="Step One">
             Edit <Text style={styles.highlight}>App.tsx</Text> to change this
             screen and then come back to see your edits.
