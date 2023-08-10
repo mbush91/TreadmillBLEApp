@@ -11,6 +11,7 @@ import { BleManager } from 'react-native-ble-plx';
 import { useEffect, useState } from 'react';
 import { FlatList, Button, PermissionsAndroid } from 'react-native';
 import { Buffer } from 'buffer';
+import Treadmill from './Treadmill';
 
 import {
   SafeAreaView,
@@ -69,6 +70,15 @@ function App(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const smartWatchMac = '90:F1:57:BE:DF:5E';
   const treadmilMac = "FE:FA:59:F4:B9:B1";
+  const treadmilService = "0000fff0-0000-1000-8000-00805f9b34fb";
+  const treadmilWrite = "0000FFF3-0000-1000-8000-00805f9b34fb";
+  const treadmilNotify = "0000FFF4-0000-1000-8000-00805f9b34fb";
+
+  
+
+  const uint8ArrayToBase64 = (data: Uint8Array): string => {
+      return Buffer.from(data).toString('base64');
+  };
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -91,7 +101,7 @@ function App(): JSX.Element {
           buttonPositive: "OK"
         }
       );
-  
+
       if (
         granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED &&
         granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED &&
@@ -105,7 +115,7 @@ function App(): JSX.Element {
       console.warn(err);
     }
   }
-  
+
 
   useEffect(() => {
     requestPermissions();
@@ -113,7 +123,6 @@ function App(): JSX.Element {
 
   const scanAndConnect = () => {
     console.log('Scan started');
-    setDevices([]);
 
     manager.startDeviceScan(null, null, (error, device) => {
       if (error) {
@@ -125,11 +134,8 @@ function App(): JSX.Element {
       }
 
       console.log('Device found:', device.name || 'Unnamed', '-', device.id);
-      //setDevices((prevDevices) => [...prevDevices, device]);
 
-
-
-      if (device.id === smartWatchMac) {
+      if (device.id === smartWatchMac || device.id === treadmilMac) {
         console.log('Target device found, stopping scan and attempting connection...');
         manager.stopDeviceScan();
 
@@ -141,21 +147,51 @@ function App(): JSX.Element {
           })
           .then((device) => {
             console.log('Monitoring for characteristic updates...');
-            device.monitorCharacteristicForService(
-              '180D', 
-              '2A37',
-              (error, characteristic) => {
-                if (error) {
-                  console.error('Error monitoring characteristic:', error);
-                  return;
+            if (device.id === smartWatchMac) {
+              device.monitorCharacteristicForService(
+                '180D',
+                '2A37',
+                (error, characteristic) => {
+                  if (error) {
+                    console.error('Error monitoring characteristic:', error);
+                    return;
+                  }
+                  if (characteristic) {
+                    const data = Buffer.from(characteristic.value, 'base64')[1];
+                    console.log('Received data:', data);
+                    setData(data);
+                  }
                 }
-                if (characteristic) {
-                  const data = Buffer.from(characteristic.value, 'base64')[1]//.toString('ascii');
-                  console.log('Received data:', data);
-                  setData(data);
+              );
+            } else if (device.id === treadmilMac) {
+              // You will need to replace 'Your_Service_UUID' and 'Your_Characteristic_UUID' with
+              // the correct service and characteristic UUIDs for your treadmill.
+              const speed = uint8ArrayToBase64(Treadmill.setSpeed(0,60));
+              console.log('speed: ', speed);
+              
+              device.monitorCharacteristicForService(
+                treadmilService,
+                treadmilWrite,
+                (error, characteristic) => {
+                  if (error) {
+                    console.error('Error monitoring characteristic:', error);
+                    return;
+                  }
+                  if (characteristic) {
+                    
+                    const characteristic = device.writeCharacteristicWithResponseForService(
+                      treadmilService,
+                      treadmilWrite,
+                      speed
+                    );
+                    // const data = Buffer.from(characteristic.value, 'base64');
+                    // console.log('Received TM data:', data);
+                    
+                    // Here, you should call a function to update the state for the treadmill's data
+                  }
                 }
-              }
-            );
+              );
+            }
           })
           .catch((error) => {
             console.log('Error during device connection or service discovery:', error);
@@ -165,10 +201,11 @@ function App(): JSX.Element {
   };
 
 
+
   useEffect(() => {
     const subscription = manager.onStateChange((state) => {
       if (state === 'PoweredOn') {
-        scanAndConnect();
+        //scanAndConnect();
       }
     }, true);
     return () => {
@@ -188,6 +225,8 @@ function App(): JSX.Element {
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
+          {/* Button to Scan and Connect */}
+          <Button title="Scan and Connect" onPress={scanAndConnect} />
           <Section title="Heart Rate">
             Heart Rate: {data}
           </Section>
@@ -195,7 +234,7 @@ function App(): JSX.Element {
             Speed: 0.0
             Incline: 0
           </Section>
-    
+
           <Section title="Step One">
             Edit <Text style={styles.highlight}>App.tsx</Text> to change this
             screen and then come back to see your edits.
