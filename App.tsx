@@ -84,6 +84,20 @@ function App(): JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
+  async function updateSpeed() {
+    if (device) {
+      const speed = uint8ArrayToBase64(Treadmill.setSpeed(0,60));
+      console.log('speed: ', speed);
+      const characteristic = device.writeCharacteristicWithResponseForService(
+        treadmilService,
+        treadmilWrite,
+        speed
+      );
+    
+    }
+
+  }
+
   async function requestPermissions() {
     console.log("called requestPermissions");
     try {
@@ -120,6 +134,8 @@ function App(): JSX.Element {
   useEffect(() => {
     requestPermissions();
   }, []);
+
+
 
   const scanAndConnect = () => {
     console.log('Scan started');
@@ -166,12 +182,13 @@ function App(): JSX.Element {
             } else if (device.id === treadmilMac) {
               // You will need to replace 'Your_Service_UUID' and 'Your_Characteristic_UUID' with
               // the correct service and characteristic UUIDs for your treadmill.
+              setDevice(device);
               const speed = uint8ArrayToBase64(Treadmill.setSpeed(0,60));
               console.log('speed: ', speed);
               
               device.monitorCharacteristicForService(
                 treadmilService,
-                treadmilWrite,
+                treadmilNotify,
                 (error, characteristic) => {
                   if (error) {
                     console.error('Error monitoring characteristic:', error);
@@ -179,13 +196,8 @@ function App(): JSX.Element {
                   }
                   if (characteristic) {
                     
-                    const characteristic = device.writeCharacteristicWithResponseForService(
-                      treadmilService,
-                      treadmilWrite,
-                      speed
-                    );
-                    // const data = Buffer.from(characteristic.value, 'base64');
-                    // console.log('Received TM data:', data);
+                    const data = Buffer.from(characteristic.value, 'base64');
+                    console.log('Received TM data:', data);
                     
                     // Here, you should call a function to update the state for the treadmill's data
                   }

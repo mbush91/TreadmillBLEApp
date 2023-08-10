@@ -85,8 +85,8 @@ class Treadmill {
             13,
             Treadmill.int2byte(SyncWord, 2),
             Treadmill.int2byte(i, 2),
-            Treadmill.int2byte(BLE_LINGO_BLE_LINGO_REMOTE.getInt(), 1),
-            Treadmill.int2byte(BLE_LINGO_REMOTE_COMMANDS_BLE_SET_SPEED.getInt(), 1),
+            Treadmill.int2byte(BLE_LINGO_BLE_LINGO_REMOTE, 1),
+            Treadmill.int2byte(BLE_LINGO_REMOTE_COMMANDS_BLE_SET_SPEED, 1),
             Treadmill.int2byte(3, 2),
             Treadmill.int2byte(confirm, 2),
             datas
@@ -109,8 +109,8 @@ class Treadmill {
             12,
             Treadmill.int2byte(SyncWord, 2),
             Treadmill.int2byte(i, 2),
-            Treadmill.int2byte(BLE_LINGO_BLE_LINGO_REMOTE.getInt(), 1),
-            Treadmill.int2byte(BLE_LINGO_REMOTE_COMMANDS_BLE_SET_INCLINE.getInt(), 1),
+            Treadmill.int2byte(BLE_LINGO_BLE_LINGO_REMOTE, 1),
+            Treadmill.int2byte(BLE_LINGO_REMOTE_COMMANDS_BLE_SET_INCLINE, 1),
             Treadmill.int2byte(2, 2),
             Treadmill.int2byte(confirm, 2),
             datas
