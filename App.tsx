@@ -8,7 +8,7 @@
 import React from 'react';
 import type {PropsWithChildren} from 'react';
 import {BleManager} from 'react-native-ble-plx';
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useCallback} from 'react';
 import {FlatList, Button, PermissionsAndroid} from 'react-native';
 import {Buffer} from 'buffer';
 import Treadmill from './Treadmill';
@@ -62,11 +62,8 @@ function Section({children, title}: SectionProps): JSX.Element {
 }
 
 function App(): JSX.Element {
-  const [manager, setManager] = useState(new BleManager());
   const [treadmillDevice, setDevice] = useState(null);
   const [hrData, setData] = useState(null);
-  const [devices, setDevices] = useState([]);
-  const [isConnected, setIsConnected] = useState(false);
 
   const isDarkMode = useColorScheme() === 'dark';
   const smartWatchMac = '90:F1:57:BE:DF:5E';
@@ -118,25 +115,7 @@ function App(): JSX.Element {
     }
   }
 
-  useEffect(() => {
-    if (hrData !== null) {
-      // Call your desired function or method here
-      console.log('Heart rate data changed:', hrData);
-      treadmilScanAndConnect();
-      // If you want to do an API call, you can do it here as well
-      // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: hrData }) });
-    }
-  }, [hrData]); // This useEffect runs every time hrData changes
-
-  useEffect(() => {
-    requestPermissions();
-  }, []);
-
-  function getTreadmillSpeed() {
-    return hrData ? hrData / 2 : null;
-  }
-
-  const doYourFurtherWorkWithDevice = device => {
+  const doYourFurtherWorkWithDevice = useCallback(device => {
     console.log(
       'Connected to device, discovering services and characteristics...',
     );
@@ -165,9 +144,9 @@ function App(): JSX.Element {
       .catch(error => {
         console.log('error', error);
       });
-  };
+  }, [getTreadmillSpeed]);
 
-  const treadmilScanAndConnect = () => {
+  const treadmilScanAndConnect = useCallback(() => {
     console.log('Scan started');
 
     // If treadmillDevice is already set
@@ -227,7 +206,25 @@ function App(): JSX.Element {
           });
       }
     });
-  };
+  }, [treadmillDevice, doYourFurtherWorkWithDevice]);
+
+  useEffect(() => {
+    if (hrData !== null) {
+      // Call your desired function or method here
+      console.log('Heart rate data changed:', hrData);
+      treadmilScanAndConnect();
+      // If you want to do an API call, you can do it here as well
+      // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: hrData }) });
+    }
+  }, [hrData, treadmilScanAndConnect]); // This useEffect runs every time hrData changes
+
+  useEffect(() => {
+    requestPermissions();
+  }, []);
+
+  function getTreadmillSpeed() {
+    return hrData ? hrData / 2 : null;
+  }  
 
   const scanAndConnect = () => {
     console.log('Scan started');
