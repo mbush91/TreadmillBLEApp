@@ -64,7 +64,7 @@ function Section({children, title}: SectionProps): JSX.Element {
 function App(): JSX.Element {
   const [manager, setManager] = useState(new BleManager());
   const [treadmillDevice, setDevice] = useState<Device | null>(null);
-  const [hrData, setData] = useState(null);
+  const [hrData, setData] = useState<number | null>(null);
 
   const isDarkMode = useColorScheme() === 'dark';
   const smartWatchMac = '90:F1:57:BE:DF:5E';
@@ -243,9 +243,7 @@ function App(): JSX.Element {
         return;
       }
 
-      //console.log('Device found:', device.name || 'Unnamed', '-', device.id);
-
-      if (device.id === smartWatchMac) {
+      if (device && device.id === smartWatchMac) {
         manager.stopDeviceScan();
         device
           .connect()
@@ -266,7 +264,7 @@ function App(): JSX.Element {
                     console.error('Error monitoring characteristic:', error);
                     return;
                   }
-                  if (characteristic) {
+                  if (characteristic && characteristic.value) {
                     const data = Buffer.from(characteristic.value, 'base64')[1];
                     setData(data);
                   }
