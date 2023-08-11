@@ -6,11 +6,11 @@
  */
 
 import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {BleManager} from 'react-native-ble-plx';
-import {useEffect, useState} from 'react';
-import {FlatList, Button, PermissionsAndroid} from 'react-native';
-import {Buffer} from 'buffer';
+import type { PropsWithChildren } from 'react';
+import { BleManager } from 'react-native-ble-plx';
+import { useEffect, useState } from 'react';
+import { FlatList, Button, PermissionsAndroid } from 'react-native';
+import { Buffer } from 'buffer';
 import Treadmill from './Treadmill';
 
 import {
@@ -35,7 +35,7 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({children, title}: SectionProps): JSX.Element {
+function Section({ children, title }: SectionProps): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
@@ -63,8 +63,8 @@ function Section({children, title}: SectionProps): JSX.Element {
 
 function App(): JSX.Element {
   const [manager, setManager] = useState(new BleManager());
-  const [device, setDevice] = useState(null);
-  const [data, setData] = useState(null);
+  const [treadmillDevice, setDevice] = useState(null);
+  const [hrData, setData] = useState(null);
   const [devices, setDevices] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -86,22 +86,22 @@ function App(): JSX.Element {
 
   async function writeToTreadmill() {
     if (!device) {
-        console.error("No device is connected.");
-        return;
+      console.error("No device is connected.");
+      return;
     }
-    
+
     const dataToSend = uint8ArrayToBase64(Treadmill.setSpeed(0, 60)); // Change this as needed
     try {
-        await device.writeCharacteristicWithResponseForService(
-            treadmilService,
-            treadmilWrite,
-            dataToSend
-        );
-        console.log("Data written successfully!");
+      await device.writeCharacteristicWithResponseForService(
+        treadmilService,
+        treadmilWrite,
+        dataToSend
+      );
+      console.log("Data written successfully!");
     } catch (error) {
-        console.error("Error writing data to treadmill:", error);
+      console.error("Error writing data to treadmill:", error);
     }
-}
+  }
 
   async function requestPermissions() {
     console.log('called requestPermissions');
@@ -123,11 +123,11 @@ function App(): JSX.Element {
 
       if (
         granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] ===
-          PermissionsAndroid.RESULTS.GRANTED &&
+        PermissionsAndroid.RESULTS.GRANTED &&
         granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] ===
-          PermissionsAndroid.RESULTS.GRANTED &&
+        PermissionsAndroid.RESULTS.GRANTED &&
         granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] ===
-          PermissionsAndroid.RESULTS.GRANTED
+        PermissionsAndroid.RESULTS.GRANTED
       ) {
         console.log('You can use the BLE ');
       } else {
@@ -138,13 +138,29 @@ function App(): JSX.Element {
     }
   }
 
+    useEffect(() => {
+      if(hrData !== null) { 
+          // Call your desired function or method here
+          console.log("Heart rate data changed:", hrData);
+          treadmilScanAndConnect()
+          // If you want to do an API call, you can do it here as well
+          // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: hrData }) });
+      }
+  }, [hrData]);  // This useEffect runs every time hrData changes
+
   useEffect(() => {
     requestPermissions();
   }, []);
 
-  const scanAndConnect = () => {
+  function getTreadmillSpeed() {
+    return hrData ? hrData / 2 : null;
+  }
+
+  const treadmilScanAndConnect = () => {
     console.log('Scan started');
-  
+
+    
+
     manager.startDeviceScan(null, null, (error, device) => {
       if (error) {
         console.log('Error during scan:', error);
@@ -153,9 +169,9 @@ function App(): JSX.Element {
         }
         return;
       }
-  
+
       console.log('Device found:', device.name || 'Unnamed', '-', device.id);
-  
+
       if (device.id === treadmilMac) {
         manager.stopDeviceScan();
         device?.connect()
@@ -163,6 +179,7 @@ function App(): JSX.Element {
             console.log(
               'Connected to device, discovering services and characteristics...',
             );
+            setDevice(device);
             return device.discoverAllServicesAndCharacteristics();
           })
           .then(device => {
@@ -173,11 +190,12 @@ function App(): JSX.Element {
             return device.characteristicsForService(treadmilService);
           })
           .then(characteristics => {
-            console.log('characteristics', characteristics);
+            let speed = getTreadmillSpeed();
+            //console.log('characteristics', characteristics);
             return device.writeCharacteristicWithResponseForService(
               treadmilService,
               treadmilWrite,
-              uint8ArrayToBase64(Treadmill.setSpeed(0, 60))
+              uint8ArrayToBase64(Treadmill.setSpeed(0, speed))
             );
           })
           .then(() => {
@@ -189,73 +207,65 @@ function App(): JSX.Element {
       }
     });
   };
-  
 
-      //   device
-      //     .connect()
-      //     .then(device => {
-      //       console.log(
-      //         'Connected to device, discovering services and characteristics...',
-      //       );
-      //       return device.discoverAllServicesAndCharacteristics();
-      //     })
-      //     .then(device => {
-      //       console.log('Monitoring for characteristic updates...');
-      //       if (device.id === smartWatchMac) {
-      //         device.monitorCharacteristicForService(
-      //           '180D',
-      //           '2A37',
-      //           (error, characteristic) => {
-      //             if (error) {
-      //               console.error('Error monitoring characteristic:', error);
-      //               return;
-      //             }
-      //             if (characteristic) {
-      //               const data = Buffer.from(characteristic.value, 'base64')[1];
-      //               console.log('Received data:', data);
-      //               setData(data);
-      //             }
-      //           },
-      //         );
-      //       } else if (device.id === treadmilMac) {
-      //         // You will need to replace 'Your_Service_UUID' and 'Your_Characteristic_UUID' with
-      //         // the correct service and characteristic UUIDs for your treadmill.
-      //         setDevice(device);
-      //         const speed = uint8ArrayToBase64(Treadmill.setSpeed(0, 60));
-      //         console.log('speed: ', speed);
+  const scanAndConnect = () => {
+    console.log('Scan started');
 
-      //         device.monitorCharacteristicForService(
-      //           treadmilService,
-      //           treadmilNotify,
-      //           (error, characteristic) => {
-      //             if (error) {
-      //               console.error('Error monitoring characteristic:', error);
-      //               return;
-      //             }
-      //             if (characteristic) {
-      //               const data = Buffer.from(characteristic.value, 'base64');
-      //               console.log('Received TM data:', data);
+    manager.startDeviceScan(null, null, (error, device) => {
+      if (error) {
+        console.log('Error during scan:', error);
+        if (error.reason) {
+          console.log('Error reason:', error.reason);
+        }
+        return;
+      }
 
-      //               // Here, you should call a function to update the state for the treadmill's data
-      //             }
-      //           },
-      //         );
-      //       }
-      //     })
-      //     .catch(error => {
-      //       console.log(
-      //         'Error during device connection or service discovery:',
-      //         error,
-      //       );
-      //     });
-      // }
-    // });
-  //};
+      //console.log('Device found:', device.name || 'Unnamed', '-', device.id);
+
+      if (device.id === smartWatchMac) {
+        manager.stopDeviceScan();
+        device
+          .connect()
+          .then(device => {
+            console.log(
+              'Connected to device, discovering services and characteristics...',
+            );
+            return device.discoverAllServicesAndCharacteristics();
+          })
+          .then(device => {
+            console.log('Monitoring for characteristic updates...');
+            if (device.id === smartWatchMac) {
+              device.monitorCharacteristicForService(
+                '180D',
+                '2A37',
+                (error, characteristic) => {
+                  if (error) {
+                    console.error('Error monitoring characteristic:', error);
+                    return;
+                  }
+                  if (characteristic) {
+                    const data = Buffer.from(characteristic.value, 'base64')[1];
+                    //console.log('Received data:', data);
+                    setData(data);
+                  }
+                },
+              );
+            }
+          })
+          .catch(error => {
+            console.log(
+              'Error during device connection or service discovery:',
+              error,
+            );
+          });
+      }
+    });
+  };
 
   useEffect(() => {
     const subscription = manager.onStateChange(state => {
       if (state === 'PoweredOn') {
-        //scanAndConnect();
+        scanAndConnect();
       }
     }, true);
     return () => {
@@ -277,7 +287,7 @@ function App(): JSX.Element {
           }}>
           {/* Button to Scan and Connect */}
           <Button title="Scan and Connect" onPress={scanAndConnect} />
-          <Section title="Heart Rate">Heart Rate: {data}</Section>
+          <Section title="Heart Rate">Heart Rate: {hrData}</Section>
           <Section title="Treadmill Status">Speed: 0.0 Incline: 0</Section>
           <Button title="Write to Treadmill" onPress={writeToTreadmill} />
           <Section title="Step One">
