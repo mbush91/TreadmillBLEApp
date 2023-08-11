@@ -138,14 +138,14 @@ function App(): JSX.Element {
     }
   }
 
-    useEffect(() => {
-      if(hrData !== null) { 
-          // Call your desired function or method here
-          console.log("Heart rate data changed:", hrData);
-          treadmilScanAndConnect()
-          // If you want to do an API call, you can do it here as well
-          // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: hrData }) });
-      }
+  useEffect(() => {
+    if (hrData !== null) {
+      // Call your desired function or method here
+      console.log("Heart rate data changed:", hrData);
+      treadmilScanAndConnect()
+      // If you want to do an API call, you can do it here as well
+      // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: hrData }) });
+    }
   }, [hrData]);  // This useEffect runs every time hrData changes
 
   useEffect(() => {
@@ -156,10 +156,61 @@ function App(): JSX.Element {
     return hrData ? hrData / 2 : null;
   }
 
+  const doYourFurtherWorkWithDevice = (device) => {
+    console.log('Connected to device, discovering services and characteristics...');
+    setDevice(device);
+
+    device.discoverAllServicesAndCharacteristics()
+      .then(device => {
+        return device.services();
+      })
+      .then(services => {
+        console.log('services', services);
+        return device.characteristicsForService(treadmilService);
+      })
+      .then(characteristics => {
+        let speed = getTreadmillSpeed();
+        return device.writeCharacteristicWithResponseForService(
+          treadmilService,
+          treadmilWrite,
+          uint8ArrayToBase64(Treadmill.setSpeed(0, speed))
+        );
+      })
+      .then(() => {
+        console.log('wrote to treadmill');
+      })
+      .catch(error => {
+        console.log('error', error);
+      });
+  }
+
+
   const treadmilScanAndConnect = () => {
     console.log('Scan started');
 
-    
+    // If treadmillDevice is already set
+    if (treadmillDevice) {
+      treadmillDevice.isConnected()
+        .then(isItConnected => {
+          if (isItConnected) {
+            console.log("Device is already connected");
+          } else {
+            treadmillDevice.connect()
+              .then(device => {
+                console.log('Reconnected to the device.');
+                return device.discoverAllServicesAndCharacteristics();
+              })
+              .then(device => doYourFurtherWorkWithDevice(device))  // Add necessary operations you need after connection
+              .catch(error => {
+                console.log('Error reconnecting to device:', error);
+              });
+          }
+        })
+        .catch(error => {
+          console.log('Error checking device connection status:', error);
+        });
+      return;
+    }
 
     manager.startDeviceScan(null, null, (error, device) => {
       if (error) {
@@ -174,39 +225,20 @@ function App(): JSX.Element {
 
       if (device.id === treadmilMac) {
         manager.stopDeviceScan();
-        device?.connect()
+        device.connect()
           .then(device => {
-            console.log(
-              'Connected to device, discovering services and characteristics...',
-            );
+            console.log('Connected to device, discovering services and characteristics...');
             setDevice(device);
             return device.discoverAllServicesAndCharacteristics();
           })
-          .then(device => {
-            return device.services();
-          })
-          .then(services => {
-            console.log('services', services);
-            return device.characteristicsForService(treadmilService);
-          })
-          .then(characteristics => {
-            let speed = getTreadmillSpeed();
-            //console.log('characteristics', characteristics);
-            return device.writeCharacteristicWithResponseForService(
-              treadmilService,
-              treadmilWrite,
-              uint8ArrayToBase64(Treadmill.setSpeed(0, speed))
-            );
-          })
-          .then(() => {
-            console.log('wrote to treadmill');
-          })
+          .then(device => doYourFurtherWorkWithDevice(device)) // Add necessary operations you need after connection
           .catch(error => {
-            console.log('error', error);
+            console.log('Error during device connection or service discovery:', error);
           });
       }
     });
   };
+
 
   const scanAndConnect = () => {
     console.log('Scan started');
@@ -265,7 +297,7 @@ function App(): JSX.Element {
   useEffect(() => {
     const subscription = manager.onStateChange(state => {
       if (state === 'PoweredOn') {
-        scanAndConnect();
+        //scanAndConnect();
       }
     }, true);
     return () => {
