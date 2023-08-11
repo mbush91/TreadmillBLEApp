@@ -7,7 +7,7 @@
 
 import React from 'react';
 import type {PropsWithChildren} from 'react';
-import {BleManager} from 'react-native-ble-plx';
+import {BleManager, Device} from 'react-native-ble-plx';
 import {useEffect, useState, useCallback} from 'react';
 import {FlatList, Button, PermissionsAndroid} from 'react-native';
 import {Buffer} from 'buffer';
@@ -62,7 +62,8 @@ function Section({children, title}: SectionProps): JSX.Element {
 }
 
 function App(): JSX.Element {
-  const [treadmillDevice, setDevice] = useState(null);
+  const [manager, setManager] = useState(new BleManager());
+  const [treadmillDevice, setDevice] = useState<Device | null>(null);
   const [hrData, setData] = useState(null);
 
   const isDarkMode = useColorScheme() === 'dark';
@@ -89,13 +90,13 @@ function App(): JSX.Element {
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
         ],
-        {
-          title: 'Bluetooth LE App Permission',
-          message: 'BLE App needs access to your Bluetooth and location ',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
+        // {
+        //   title: 'Bluetooth LE App Permission',
+        //   message: 'BLE App needs access to your Bluetooth and location ',
+        //   buttonNeutral: 'Ask Me Later',
+        //   buttonNegative: 'Cancel',
+        //   buttonPositive: 'OK',
+        // },
       );
 
       if (
@@ -115,36 +116,43 @@ function App(): JSX.Element {
     }
   }
 
-  const doYourFurtherWorkWithDevice = useCallback(device => {
-    console.log(
-      'Connected to device, discovering services and characteristics...',
-    );
-    setDevice(device);
+  const getTreadmillSpeed = useCallback(() => {
+    return hrData ? hrData / 2 : null;
+  }, [hrData]);
 
-    device
-      .discoverAllServicesAndCharacteristics()
-      .then(device => {
-        return device.services();
-      })
-      .then(services => {
-        console.log('services', services);
-        return device.characteristicsForService(treadmilService);
-      })
-      .then(characteristics => {
-        let speed = getTreadmillSpeed();
-        return device.writeCharacteristicWithResponseForService(
-          treadmilService,
-          treadmilWrite,
-          uint8ArrayToBase64(Treadmill.setSpeed(0, speed)),
-        );
-      })
-      .then(() => {
-        console.log('wrote to treadmill');
-      })
-      .catch(error => {
-        console.log('error', error);
-      });
-  }, [getTreadmillSpeed]);
+  const doYourFurtherWorkWithDevice = useCallback(
+    (device: Device) => {
+      console.log(
+        'Connected to device, discovering services and characteristics...',
+      );
+      setDevice(device);
+
+      device
+        .discoverAllServicesAndCharacteristics()
+        .then(device => {
+          return device.services();
+        })
+        .then(services => {
+          console.log('services', services);
+          return device.characteristicsForService(treadmilService);
+        })
+        .then(() => {
+          let speed = getTreadmillSpeed() || 0;
+          return device.writeCharacteristicWithResponseForService(
+            treadmilService,
+            treadmilWrite,
+            uint8ArrayToBase64(Treadmill.setSpeed(0, speed)),
+          );
+        })
+        .then(() => {
+          console.log('wrote to treadmill');
+        })
+        .catch(error => {
+          console.log('error', error);
+        });
+    },
+    [getTreadmillSpeed],
+  );
 
   const treadmilScanAndConnect = useCallback(() => {
     console.log('Scan started');
@@ -183,30 +191,31 @@ function App(): JSX.Element {
         }
         return;
       }
+      if (device) {
+        console.log('Device found:', device.name || 'Unnamed', '-', device.id);
 
-      console.log('Device found:', device.name || 'Unnamed', '-', device.id);
-
-      if (device.id === treadmilMac) {
-        manager.stopDeviceScan();
-        device
-          .connect()
-          .then(device => {
-            console.log(
-              'Connected to device, discovering services and characteristics...',
-            );
-            setDevice(device);
-            return device.discoverAllServicesAndCharacteristics();
-          })
-          .then(device => doYourFurtherWorkWithDevice(device)) // Add necessary operations you need after connection
-          .catch(error => {
-            console.log(
-              'Error during device connection or service discovery:',
-              error,
-            );
-          });
+        if (device.id === treadmilMac) {
+          manager.stopDeviceScan();
+          device
+            .connect()
+            .then(device => {
+              console.log(
+                'Connected to device, discovering services and characteristics...',
+              );
+              setDevice(device);
+              return device.discoverAllServicesAndCharacteristics();
+            })
+            .then(device => doYourFurtherWorkWithDevice(device)) // Add necessary operations you need after connection
+            .catch(error => {
+              console.log(
+                'Error during device connection or service discovery:',
+                error,
+              );
+            });
+        }
       }
     });
-  }, [treadmillDevice, doYourFurtherWorkWithDevice]);
+  }, [treadmillDevice, manager, doYourFurtherWorkWithDevice]);
 
   useEffect(() => {
     if (hrData !== null) {
@@ -221,10 +230,6 @@ function App(): JSX.Element {
   useEffect(() => {
     requestPermissions();
   }, []);
-
-  function getTreadmillSpeed() {
-    return hrData ? hrData / 2 : null;
-  }  
 
   const scanAndConnect = () => {
     console.log('Scan started');
@@ -263,7 +268,6 @@ function App(): JSX.Element {
                   }
                   if (characteristic) {
                     const data = Buffer.from(characteristic.value, 'base64')[1];
-                    //console.log('Received data:', data);
                     setData(data);
                   }
                 },
@@ -289,7 +293,7 @@ function App(): JSX.Element {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [manager]);
 
   return (
     <SafeAreaView style={backgroundStyle}>
