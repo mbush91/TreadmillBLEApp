@@ -1,4 +1,4 @@
-const CRC_TABLE = [
+const CRC_TABLE: number[] = [
   0, 4129, 8258, 12387, 16516, 20645, 24774, 28903, 33032, 37161, 41290, 45419,
   49548, 53677, 57806, 61935, 4657, 528, 12915, 8786, 21173, 17044, 29431,
   25302, 37689, 33560, 45947, 41818, 54205, 50076, 62463, 58334, 9314, 13379,
@@ -24,6 +24,7 @@ const CRC_TABLE = [
   57212, 44955, 49082, 36825, 40952, 28183, 32310, 20053, 24180, 11923, 16050,
   3793, 7920,
 ];
+
 const SyncWord = 43605;
 const BLE_LINGO_BLE_LINGO_MUDULE_SETTINGS = 0;
 const BLE_LINGO_BLE_LINGO_GENERAL = 1;
@@ -42,18 +43,18 @@ const BLE_LINGO_REMOTE_COMMANDS_BLE_SET_SPEED = 5;
 const BLE_LINGO_REMOTE_COMMANDS_BLE_SET_INCLINE = 6;
 
 class Treadmill {
-  static transactionId = 0;
+  static transactionId: number = 0;
 
   static startWorkOut(
-    programType,
-    workoutTime,
-    warmUpTime,
-    cooldownTime,
-    units,
-    speedX10,
-    inclineX10,
-    resistance,
-  ) {
+    programType: any,
+    workoutTime: number,
+    warmUpTime: number,
+    cooldownTime: number,
+    units: any,
+    speedX10: number,
+    inclineX10: number,
+    resistance: number,
+  ): Uint8Array {
     console.log('--------------------startWorkout-----------------');
     let datas = Treadmill.byteToBigByte(
       14,
@@ -84,7 +85,7 @@ class Treadmill {
     return bytes;
   }
 
-  static stopWorkoutCompletion() {
+  static stopWorkoutCompletion(): Uint8Array {
     console.log('--------------------stopWorkoutCompletion-----------------');
     let confirm = Treadmill.GenerateCRC_CCITT(null, 0);
     let i = Treadmill.transactionId + 1;
@@ -102,7 +103,7 @@ class Treadmill {
     return bytes;
   }
 
-  static setSpeed(units, speedX10) {
+  static setSpeed(units: any, speedX10: number): Uint8Array {
     console.log('--------------------setSpeed-----------------');
     let datas = Treadmill.byteToBigByte(
       3,
@@ -127,7 +128,7 @@ class Treadmill {
     return bytes;
   }
 
-  static setIncline(incline) {
+  static setIncline(incline: number): Uint8Array {
     console.log('--------------------setIncline-----------------');
     let datas = Treadmill.byteToBigByte(2, Treadmill.int2byte(incline * 10, 2));
 
@@ -148,7 +149,7 @@ class Treadmill {
     return bytes;
   }
 
-  static byteToBigByte(length, ...b) {
+  static byteToBigByte(length: number, ...b: Uint8Array[]): Uint8Array {
     let values = new Uint8Array(length);
     let index = 0;
     for (let i = 0; i < b.length; i++) {
@@ -160,7 +161,7 @@ class Treadmill {
     return values;
   }
 
-  static int2byte(res, index) {
+  static int2byte(res: number, index: number): Uint8Array {
     let targets = new Uint8Array(index);
     targets[0] = res & 255;
     if (index === 2) {
@@ -169,7 +170,7 @@ class Treadmill {
     return targets;
   }
 
-  static GenerateCRC_CCITT(PUPtr8, PU16_Count) {
+  static GenerateCRC_CCITT(PUPtr8: Uint8Array | null, PU16_Count: number): number {
     if (PU16_Count === 0) {
       return 0;
     }
@@ -181,6 +182,7 @@ class Treadmill {
     }
     return crc;
   }
+  
 }
 
 export default Treadmill;
