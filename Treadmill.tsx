@@ -170,7 +170,10 @@ class Treadmill {
     return targets;
   }
 
-  static GenerateCRC_CCITT(PUPtr8: Uint8Array | null, PU16_Count: number): number {
+  static GenerateCRC_CCITT(
+    PUPtr8: Uint8Array | null,
+    PU16_Count: number,
+  ): number {
     if (PU16_Count === 0) {
       return 0;
     }
@@ -182,7 +185,6 @@ class Treadmill {
     }
     return crc;
   }
-  
 }
 
 export default Treadmill;
