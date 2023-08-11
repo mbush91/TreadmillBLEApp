@@ -84,25 +84,6 @@ function App(): JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  async function writeToTreadmill() {
-    if (!device) {
-      console.error("No device is connected.");
-      return;
-    }
-
-    const dataToSend = uint8ArrayToBase64(Treadmill.setSpeed(0, 60)); // Change this as needed
-    try {
-      await device.writeCharacteristicWithResponseForService(
-        treadmilService,
-        treadmilWrite,
-        dataToSend
-      );
-      console.log("Data written successfully!");
-    } catch (error) {
-      console.error("Error writing data to treadmill:", error);
-    }
-  }
-
   async function requestPermissions() {
     console.log('called requestPermissions');
     try {
@@ -321,7 +302,7 @@ function App(): JSX.Element {
           <Button title="Scan and Connect" onPress={scanAndConnect} />
           <Section title="Heart Rate">Heart Rate: {hrData}</Section>
           <Section title="Treadmill Status">Speed: 0.0 Incline: 0</Section>
-          <Button title="Write to Treadmill" onPress={writeToTreadmill} />
+          {/* <Button title="Write to Treadmill" onPress={} /> */}
           <Section title="Step One">
             Edit <Text style={styles.highlight}>App.tsx</Text> to change this
             screen and then come back to see your edits.
