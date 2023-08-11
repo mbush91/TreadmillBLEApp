@@ -120,102 +120,123 @@ function App(): JSX.Element {
     return hrData ? hrData / 2 : null;
   }, [hrData]);
 
-  const doYourFurtherWorkWithDevice = useCallback(
-    (device: Device) => {
-      console.log(
-        'Connected to device, discovering services and characteristics...',
-      );
-      setDevice(device);
+  // const doYourFurtherWorkWithDevice = useCallback(
+  //   (device: Device) => {
+  //     console.log(
+  //       'Connected to device, discovering services and characteristics...',
+  //     );
 
-      device
-        .discoverAllServicesAndCharacteristics()
-        .then(device => {
-          return device.services();
-        })
-        .then(services => {
-          console.log('services', services);
-          return device.characteristicsForService(treadmilService);
-        })
-        .then(() => {
-          let speed = getTreadmillSpeed() || 0;
-          return device.writeCharacteristicWithResponseForService(
-            treadmilService,
-            treadmilWrite,
-            uint8ArrayToBase64(Treadmill.setSpeed(0, speed)),
-          );
-        })
-        .then(() => {
-          console.log('wrote to treadmill');
-        })
-        .catch(error => {
-          console.log('error', error);
-        });
-    },
-    [getTreadmillSpeed],
-  );
+  //     device
+  //       .discoverAllServicesAndCharacteristics()
+  //       .then(device => {
+  //         return device.services();
+  //       })
+  //       .then(services => {
+  //         console.log('services', services);
+  //         return device.characteristicsForService(treadmilService);
+  //       })
+  //       .then(() => {
+  //         let speed = getTreadmillSpeed() || 0;
+  //         return device.writeCharacteristicWithResponseForService(
+  //           treadmilService,
+  //           treadmilWrite,
+  //           uint8ArrayToBase64(Treadmill.setSpeed(0, speed)),
+  //         );
+  //       })
+  //       .then(() => {
+  //         console.log('wrote to treadmill');
+  //       })
+  //       .catch(error => {
+  //         console.log('error', error);
+  //       });
+  //   },
+  //   [getTreadmillSpeed],
+  // );
 
-  const treadmilScanAndConnect = useCallback(() => {
-    console.log('Scan started');
+  const ensureTreadmillConnected = (): Promise<Device> => {
+    return new Promise((resolve, reject) => {
+      // If treadmillDevice is null, scan for it
+      if (!treadmillDevice) {
+        manager.startDeviceScan(null, null, (error, device) => {
+          if (error) {
+            console.log('Error during scan:', error);
+            reject(error);
+            return;
+          }
 
-    // If treadmillDevice is already set
-    if (treadmillDevice) {
-      treadmillDevice
-        .isConnected()
-        .then(isItConnected => {
-          if (isItConnected) {
-            console.log('Device is already connected');
-          } else {
-            treadmillDevice
+          if (device && device.id === treadmilMac) {
+            manager.stopDeviceScan();
+            device
               .connect()
-              .then(device => {
-                console.log('Reconnected to the device.');
-                return device.discoverAllServicesAndCharacteristics();
+              .then(connectedDevice => {
+                setDevice(connectedDevice);
+                resolve(connectedDevice);
               })
-              .then(device => doYourFurtherWorkWithDevice(device)) // Add necessary operations you need after connection
-              .catch(error => {
-                console.log('Error reconnecting to device:', error);
+              .catch(err => {
+                console.warn('Error connecting to device:', err);
+                reject(err);
               });
           }
-        })
-        .catch(error => {
-          console.log('Error checking device connection status:', error);
         });
-      return;
-    }
-
-    manager.startDeviceScan(null, null, (error, device) => {
-      if (error) {
-        console.log('Error during scan:', error);
-        if (error.reason) {
-          console.log('Error reason:', error.reason);
-        }
-        return;
-      }
-      if (device) {
-        console.log('Device found:', device.name || 'Unnamed', '-', device.id);
-
-        if (device.id === treadmilMac) {
-          manager.stopDeviceScan();
-          device
-            .connect()
-            .then(device => {
-              console.log(
-                'Connected to device, discovering services and characteristics...',
-              );
-              setDevice(device);
-              return device.discoverAllServicesAndCharacteristics();
-            })
-            .then(device => doYourFurtherWorkWithDevice(device)) // Add necessary operations you need after connection
-            .catch(error => {
-              console.log(
-                'Error during device connection or service discovery:',
-                error,
-              );
-            });
-        }
+      } else {
+        // If treadmillDevice is not null, check if it's connected
+        treadmillDevice
+          .isConnected()
+          .then(isItConnected => {
+            if (isItConnected) {
+              resolve(treadmillDevice);
+            } else {
+              console.log('Reconnecting to the device.');
+              treadmillDevice
+                .connect()
+                .then(connectedDevice => {
+                  resolve(connectedDevice);
+                })
+                .catch(err => {
+                  console.warn('Error reconnecting to device:', err);
+                  reject(err);
+                });
+            }
+          })
+          .catch(err => {
+            console.warn('Error checking connection status:', err);
+            reject(err);
+          });
       }
     });
-  }, [treadmillDevice, manager, doYourFurtherWorkWithDevice]);
+  };
+
+  const treadmilScanAndConnect = useCallback(() => {
+    console.log('Treadmill Scan started');
+
+    ensureTreadmillConnected()
+      .then(device => {
+        return device.discoverAllServicesAndCharacteristics();
+      })
+      .then(device => {
+        return device.services();
+      })
+      .then(services => {
+        console.log('services', services);
+        return treadmillDevice.characteristicsForService(treadmilService);
+      })
+      .then(characteristics => {
+        console.log('characteristics', characteristics);
+        return treadmillDevice.writeCharacteristicWithResponseForService(
+          treadmilService,
+          treadmilWrite,
+          uint8ArrayToBase64(Treadmill.setSpeed(0, getTreadmillSpeed() || 0)),
+        );
+      })
+      .then(() => {
+        console.log('wrote to treadmill');
+      })
+      .catch(error => {
+        console.warn('Error', error);
+      });
+
+    return;
+  }, [treadmillDevice, ensureTreadmillConnected]);
 
   useEffect(() => {
     if (hrData !== null) {
