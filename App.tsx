@@ -62,7 +62,9 @@ function Section({children, title}: SectionProps): JSX.Element {
 }
 
 function App(): JSX.Element {
-  const [manager, setManager] = useState(new BleManager());
+  const [manager, setManager] = useState(() => {
+    return new BleManager();
+  });
   const [treadmillDevice, setDevice] = useState<Device | null>(null);
   const [hrData, setData] = useState<number | null>(null);
 
