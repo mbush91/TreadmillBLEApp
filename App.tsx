@@ -74,7 +74,11 @@ function App(): JSX.Element {
   } = useBLEApi();
 
   const [lastCalled, setLastCalled] = useState<number | null>(null);
-
+  const [speed, setSpeed] = useState<number>(0);
+  const [restHR, setRestHR] = useState<number>(0);
+  const [maxHR, setMaxHR] = useState<number>(0);
+  const [maxSpeed, setMaxSpeed] = useState<number>(0);
+  const [restSpeed, setRestSpeed] = useState<number>(0);
   const isDarkMode = useColorScheme() === 'dark';
 
   const backgroundStyle = {
@@ -88,7 +92,7 @@ function App(): JSX.Element {
 
       // TODO : Calculate speed based on heart rate
 
-      updateTreadmillSpeed(heartRate / 10.0);
+      updateTreadmillSpeed(speed * 10.0);
       setLastCalled(currentTime);
       console.log('Called newSpeed');
     } else {
@@ -98,12 +102,8 @@ function App(): JSX.Element {
 
   useEffect(() => {
     if (heartRate !== null) {
-      // Call your desired function or method here
       console.log('Heart rate data changed:', heartRate);
-      newSpeed(heartRate/10.0);
-      //treadmilScanAndConnect();
-      // If you want to do an API call, you can do it here as well
-      // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: heartRate }) });
+      newSpeed();
     }
   }, [heartRate]); // This useEffect runs every time heartRate changes
 
@@ -126,7 +126,7 @@ function App(): JSX.Element {
           {/* Button to Scan and Connect */}
           <Button title="Scan and Connect" onPress={scanHRDevice} />
           <Section title="Heart Rate">Heart Rate: {heartRate}</Section>
-          <Section title="Treadmill Status">Speed: 0.0 Incline: 0</Section>
+          <Section title="Treadmill Status">Speed: {speed} Incline: 0</Section>
           {/* <Button title="Write to Treadmill" onPress={} /> */}
           <Section title="Step One">
             Edit <Text style={styles.highlight}>App.tsx</Text> to change this

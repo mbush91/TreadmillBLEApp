@@ -36,49 +36,55 @@ function useBLEApi(): BLEApi {
 
 
     const updateTreadmillSpeed = (newSpeed: number) => {
-        console.log('Treadmill Scan started');
-        manager.startDeviceScan(null, null, (error, device) => {
-            if (error) {
-                console.log('Error during scan:', error);
-                if (error.reason) {
-                    console.log('Error reason:', error.reason);
+        if (connectedTreadmill) {
+            // If we have a connected device, just write the new speed to it
+            writeToTreadmill(connectedTreadmill, newSpeed);
+        } else {
+            // If not, we start the scan and then write the new speed
+            manager.startDeviceScan(null, null, (error, device) => {
+                if (error) {
+                    console.log('Error during scan:', error);
+                    if (error.reason) {
+                        console.log('Error reason:', error.reason);
+                    }
+                    return;
                 }
-                return;
-            }
 
-            if (device && device.id === treadmilMac) {
-                manager.stopDeviceScan();
-                device
-                    .connect()
-                    .then(() => {
-                        return device.discoverAllServicesAndCharacteristics();
-                    })
-                    .then(() => {
-                        return device.services();
-                    })
-                    .then(services => {
-                        console.log('services', services);
-                        return device.characteristicsForService(treadmilService);
-                    })
-                    .then(characteristics => {
-                        console.log('characteristics', characteristics);
-                        return device.writeCharacteristicWithResponseForService(
-                            treadmilService,
-                            treadmilWrite,
-                            uint8ArrayToBase64(Treadmill.setSpeed(0, newSpeed)),
-                        );
-                    })
-                    .then(() => {
-                        console.log('wrote to treadmill');
-                    })
-                    .catch(err => {
-                        console.warn('Error', err);
-                    });
+                if (device && device.id === treadmilMac) {
+                    manager.stopDeviceScan();
+                    device
+                        .connect()
+                        .then(() => {
+                            setConnectedTreadmill(device);  // Save the connected device
+                            writeToTreadmill(device, newSpeed);
+                        })
+                        .catch(err => {
+                            console.warn('Error', err);
+                        });
+                }
+            });
+        }
+    };
 
-                return;
-
-            }
-        });
+    const writeToTreadmill = (device: Device, newSpeed: number) => {
+        device.discoverAllServicesAndCharacteristics()
+            .then(() => {
+                return device.characteristicsForService(treadmilService);
+            })
+            .then(characteristics => {
+                console.log('characteristics', characteristics);
+                return device.writeCharacteristicWithResponseForService(
+                    treadmilService,
+                    treadmilWrite,
+                    uint8ArrayToBase64(Treadmill.setSpeed(0, newSpeed)),
+                );
+            })
+            .then(() => {
+                console.log('wrote to treadmill');
+            })
+            .catch(err => {
+                console.warn('Error', err);
+            });
     };
 
     const scanTreadmillDevice = () => {
