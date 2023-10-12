@@ -16,7 +16,7 @@ function Settings(props) {
   };
 
   return (
-    <View style={styles.container}>
+    <>
       <TextInput
         value={String(maxHR)}
         onChangeText={setMaxHR}
@@ -38,7 +38,7 @@ function Settings(props) {
         placeholder="Rest Speed"
       />
       <Button title="Save Settings" onPress={handleSave} />
-    </View>
+    </>
   );
 }
 

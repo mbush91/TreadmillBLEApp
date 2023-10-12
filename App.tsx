@@ -84,7 +84,7 @@ function App(): JSX.Element {
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [isHRRampUp, setIsHRRampUp] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(true);
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -204,6 +204,19 @@ function App(): JSX.Element {
               <Text>Rest Speed: {restSpeed}</Text>
             </View>
           </Section>
+          <Button
+            title="Settings"
+            onPress={toggleSettings}
+          />
+          {isSettingsVisible ? (
+            <Settings
+              maxHR={maxHR}
+              restHR={restHR}
+              maxSpeed={maxSpeed}
+              restSpeed={restSpeed}
+              onSave={saveSettings}
+            />
+          ) : null}
         </View>
       </View>
     </SafeAreaView>
