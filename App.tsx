@@ -6,12 +6,12 @@
  */
 
 import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {BleManager, Device} from 'react-native-ble-plx';
-import {useEffect, useState, useCallback} from 'react';
-import {FlatList, Button, PermissionsAndroid} from 'react-native';
-import {Buffer} from 'buffer';
+import type { PropsWithChildren } from 'react';
+import { BleManager, Device } from 'react-native-ble-plx';
+import { useEffect, useState, useCallback } from 'react';
+import { FlatList, Button, PermissionsAndroid } from 'react-native';
 import Treadmill from './Treadmill';
+import useBLEApi from './BLE';
 
 import {
   SafeAreaView,
@@ -35,7 +35,7 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({children, title}: SectionProps): JSX.Element {
+function Section({ children, title }: SectionProps): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
@@ -62,259 +62,54 @@ function Section({children, title}: SectionProps): JSX.Element {
 }
 
 function App(): JSX.Element {
-  const [manager, setManager] = useState(() => {
-    return new BleManager();
-  });
-  const [treadmillDevice, setDevice] = useState<Device | null>(null);
-  const [hrData, setData] = useState<number | null>(null);
+  const {
+    scanTreadmillDevice,
+    connectDevice,
+    disconnectFromDevice,
+    updateTreadmillSpeed,
+    scanHRDevice,
+    requestPermissions,
+    heartRate,
+    setSpeed,
+  } = useBLEApi();
+
+  const [lastCalled, setLastCalled] = useState<number | null>(null);
 
   const isDarkMode = useColorScheme() === 'dark';
-  const smartWatchMac = '90:F1:57:BE:DF:5E';
-  const treadmilMac = 'FE:FA:59:F4:B9:B1';
-  const treadmilService = '0000fff0-0000-1000-8000-00805f9b34fb';
-  const treadmilWrite = '0000FFF3-0000-1000-8000-00805f9b34fb';
-  const treadmilNotify = '0000FFF4-0000-1000-8000-00805f9b34fb';
-
-  const uint8ArrayToBase64 = (data: Uint8Array): string => {
-    return Buffer.from(data).toString('base64');
-  };
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  async function requestPermissions() {
-    console.log('called requestPermissions');
-    try {
-      const granted = await PermissionsAndroid.requestMultiple(
-        [
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-        ],
-        // {
-        //   title: 'Bluetooth LE App Permission',
-        //   message: 'BLE App needs access to your Bluetooth and location ',
-        //   buttonNeutral: 'Ask Me Later',
-        //   buttonNegative: 'Cancel',
-        //   buttonPositive: 'OK',
-        // },
-      );
+  const newSpeed = () => {
+    const currentTime = Date.now();
 
-      if (
-        granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] ===
-          PermissionsAndroid.RESULTS.GRANTED &&
-        granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] ===
-          PermissionsAndroid.RESULTS.GRANTED &&
-        granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] ===
-          PermissionsAndroid.RESULTS.GRANTED
-      ) {
-        console.log('You can use the BLE ');
-      } else {
-        console.log('Bluetooth and location permission denied');
-      }
-    } catch (err) {
-      console.warn(err);
+    if (!lastCalled || currentTime - lastCalled > 15000) {
+
+      // TODO : Calculate speed based on heart rate
+
+      updateTreadmillSpeed(heartRate / 10.0);
+      setLastCalled(currentTime);
+      console.log('Called newSpeed');
+    } else {
+      console.log('Called too soon. Wait for 15 seconds.');
     }
-  }
-
-  const getTreadmillSpeed = useCallback(() => {
-    return hrData ? hrData / 2 : null;
-  }, [hrData]);
-
-  // const doYourFurtherWorkWithDevice = useCallback(
-  //   (device: Device) => {
-  //     console.log(
-  //       'Connected to device, discovering services and characteristics...',
-  //     );
-
-  //     device
-  //       .discoverAllServicesAndCharacteristics()
-  //       .then(device => {
-  //         return device.services();
-  //       })
-  //       .then(services => {
-  //         console.log('services', services);
-  //         return device.characteristicsForService(treadmilService);
-  //       })
-  //       .then(() => {
-  //         let speed = getTreadmillSpeed() || 0;
-  //         return device.writeCharacteristicWithResponseForService(
-  //           treadmilService,
-  //           treadmilWrite,
-  //           uint8ArrayToBase64(Treadmill.setSpeed(0, speed)),
-  //         );
-  //       })
-  //       .then(() => {
-  //         console.log('wrote to treadmill');
-  //       })
-  //       .catch(error => {
-  //         console.log('error', error);
-  //       });
-  //   },
-  //   [getTreadmillSpeed],
-  // );
-
-  const ensureTreadmillConnected = (): Promise<Device> => {
-    return new Promise((resolve, reject) => {
-      // If treadmillDevice is null, scan for it
-      if (!treadmillDevice) {
-        manager.startDeviceScan(null, null, (error, device) => {
-          if (error) {
-            console.log('Error during scan:', error);
-            reject(error);
-            return;
-          }
-
-          if (device && device.id === treadmilMac) {
-            manager.stopDeviceScan();
-            device
-              .connect()
-              .then(connectedDevice => {
-                setDevice(connectedDevice);
-                resolve(connectedDevice);
-              })
-              .catch(err => {
-                console.warn('Error connecting to device:', err);
-                reject(err);
-              });
-          }
-        });
-      } else {
-        // If treadmillDevice is not null, check if it's connected
-        treadmillDevice
-          .isConnected()
-          .then(isItConnected => {
-            if (isItConnected) {
-              resolve(treadmillDevice);
-            } else {
-              console.log('Reconnecting to the device.');
-              treadmillDevice
-                .connect()
-                .then(connectedDevice => {
-                  resolve(connectedDevice);
-                })
-                .catch(err => {
-                  console.warn('Error reconnecting to device:', err);
-                  reject(err);
-                });
-            }
-          })
-          .catch(err => {
-            console.warn('Error checking connection status:', err);
-            reject(err);
-          });
-      }
-    });
   };
 
-  const treadmilScanAndConnect = useCallback(() => {
-    console.log('Treadmill Scan started');
-
-    ensureTreadmillConnected()
-      .then(device => {
-        return device.discoverAllServicesAndCharacteristics();
-      })
-      .then(device => {
-        return device.services();
-      })
-      .then(services => {
-        console.log('services', services);
-        return treadmillDevice.characteristicsForService(treadmilService);
-      })
-      .then(characteristics => {
-        console.log('characteristics', characteristics);
-        return treadmillDevice.writeCharacteristicWithResponseForService(
-          treadmilService,
-          treadmilWrite,
-          uint8ArrayToBase64(Treadmill.setSpeed(0, getTreadmillSpeed() || 0)),
-        );
-      })
-      .then(() => {
-        console.log('wrote to treadmill');
-      })
-      .catch(error => {
-        console.warn('Error', error);
-      });
-
-    return;
-  }, [treadmillDevice, ensureTreadmillConnected]);
-
   useEffect(() => {
-    if (hrData !== null) {
+    if (heartRate !== null) {
       // Call your desired function or method here
-      console.log('Heart rate data changed:', hrData);
-      treadmilScanAndConnect();
+      console.log('Heart rate data changed:', heartRate);
+      newSpeed(heartRate/10.0);
+      //treadmilScanAndConnect();
       // If you want to do an API call, you can do it here as well
-      // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: hrData }) });
+      // e.g., fetch("/api/saveHeartRate", { method: "POST", body: JSON.stringify({ hr: heartRate }) });
     }
-  }, [hrData, treadmilScanAndConnect]); // This useEffect runs every time hrData changes
+  }, [heartRate]); // This useEffect runs every time heartRate changes
 
   useEffect(() => {
     requestPermissions();
-  }, []);
-
-  const scanAndConnect = () => {
-    console.log('Scan started');
-
-    manager.startDeviceScan(null, null, (error, device) => {
-      if (error) {
-        console.log('Error during scan:', error);
-        if (error.reason) {
-          console.log('Error reason:', error.reason);
-        }
-        return;
-      }
-
-      if (device && device.id === smartWatchMac) {
-        manager.stopDeviceScan();
-        device
-          .connect()
-          .then(device => {
-            console.log(
-              'Connected to device, discovering services and characteristics...',
-            );
-            return device.discoverAllServicesAndCharacteristics();
-          })
-          .then(device => {
-            console.log('Monitoring for characteristic updates...');
-            if (device.id === smartWatchMac) {
-              device.monitorCharacteristicForService(
-                '180D',
-                '2A37',
-                (error, characteristic) => {
-                  if (error) {
-                    console.error('Error monitoring characteristic:', error);
-                    return;
-                  }
-                  if (characteristic && characteristic.value) {
-                    const data = Buffer.from(characteristic.value, 'base64')[1];
-                    setData(data);
-                  }
-                },
-              );
-            }
-          })
-          .catch(error => {
-            console.log(
-              'Error during device connection or service discovery:',
-              error,
-            );
-          });
-      }
-    });
-  };
-
-  useEffect(() => {
-    const subscription = manager.onStateChange(state => {
-      if (state === 'PoweredOn') {
-        //scanAndConnect();
-      }
-    }, true);
-    return () => {
-      subscription.remove();
-    };
-  }, [manager]);
+  }, [requestPermissions]);
 
   return (
     <SafeAreaView style={backgroundStyle}>
@@ -329,8 +124,8 @@ function App(): JSX.Element {
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
           {/* Button to Scan and Connect */}
-          <Button title="Scan and Connect" onPress={scanAndConnect} />
-          <Section title="Heart Rate">Heart Rate: {hrData}</Section>
+          <Button title="Scan and Connect" onPress={scanHRDevice} />
+          <Section title="Heart Rate">Heart Rate: {heartRate}</Section>
           <Section title="Treadmill Status">Speed: 0.0 Incline: 0</Section>
           {/* <Button title="Write to Treadmill" onPress={} /> */}
           <Section title="Step One">
