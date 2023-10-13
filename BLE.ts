@@ -12,7 +12,7 @@ interface BLEApi {
     scanHRDevice(): void;
     scanTreadmillDevice(): () => Promise<Device | null>;
     connectDevice(device: Device): () => Promise<void>;
-    disconnectFromDevice(device: Device): () => void;
+    endSession: () => void;
     heartRate: number;
     setSpeed: Dispatch<SetStateAction<number>>;
 }
@@ -29,6 +29,7 @@ function useBLEApi(): BLEApi {
     const [speed, setSpeed] = useState<number>(0);
     const manager = useMemo(() => new BleManager(), []);
     const [connectedTreadmill, setConnectedTreadmill] = useState<Device | null>(null);
+    const [connectedDevices, setConnectedDevices] = useState<Device[]>([]);
 
     const uint8ArrayToBase64 = (data: Uint8Array): string => {
         return Buffer.from(data).toString('base64');
@@ -55,6 +56,7 @@ function useBLEApi(): BLEApi {
                     device
                         .connect()
                         .then(() => {
+                            setConnectedDevices(prevDevices => [...prevDevices, device]);
                             setConnectedTreadmill(device);  // Save the connected device
                             writeToTreadmill(device, newSpeed);
                         })
@@ -102,6 +104,7 @@ function useBLEApi(): BLEApi {
                 device
                     .connect()
                     .then(connectedDevice => {
+                        setConnectedDevices(prevDevices => [...prevDevices, device]);
                         return device.discoverAllServicesAndCharacteristics();
                     })
                     .then(device => {
@@ -117,8 +120,6 @@ function useBLEApi(): BLEApi {
     };
 
     const connectDevice = (device: Device) => { };
-
-    const disconnectFromDevice = (device: Device) => { };
 
     const scanHRDevice = () => {
         manager.startDeviceScan(null, null, (error, device) => {
@@ -138,6 +139,7 @@ function useBLEApi(): BLEApi {
                         console.log(
                             'Connected to device, discovering services and characteristics...',
                         );
+                        setConnectedDevices(prevDevices => [...prevDevices, device]);
                         return device.discoverAllServicesAndCharacteristics();
                     })
                     .then(device => {
@@ -168,6 +170,22 @@ function useBLEApi(): BLEApi {
             }
         });
     };
+
+    const endSession = () => {
+        connectedDevices.forEach(device => {
+            device.disconnect()
+                .then(() => {
+                    console.log(`Disconnected from device: ${device.id}`);
+                })
+                .catch(err => {
+                    console.warn(`Error disconnecting from device ${device.id}:`, err);
+                });
+        });
+
+        // Clear the list of connected devices
+        setConnectedDevices([]);
+    };
+
 
     const requestPermissions = useCallback(async () => {
         console.log('called requestPermissions');
@@ -205,12 +223,12 @@ function useBLEApi(): BLEApi {
     return {
         scanTreadmillDevice,
         connectDevice,
-        disconnectFromDevice,
         updateTreadmillSpeed,
         scanHRDevice,
         requestPermissions,
         heartRate,
         setSpeed,
+        endSession,
     };
 }
 
