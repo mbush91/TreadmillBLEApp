@@ -10,6 +10,7 @@ import type { PropsWithChildren } from 'react';
 import { BleManager, Device } from 'react-native-ble-plx';
 import { useEffect, useState, useCallback } from 'react';
 import { FlatList, Button, TextInput } from 'react-native';
+import DropDownPicker from 'react-native-dropdown-picker';
 import Treadmill from './Treadmill';
 import useBLEApi from './BLE';
 import Settings from './Settings';
@@ -84,6 +85,7 @@ function App(): JSX.Element {
   const [restHR, setRestHR] = useState<number>(0);
   const [maxHR, setMaxHR] = useState<number>(0);
   const [maxSpeed, setMaxSpeed] = useState<number>(0);
+  const [hillIncline, setHillIncline] = useState<number>(0);
   const [restSpeed, setRestSpeed] = useState<number>(0);
   const isDarkMode = useColorScheme() === 'dark';
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
@@ -91,6 +93,11 @@ function App(): JSX.Element {
   const [isSettingsVisible, setIsSettingsVisible] = useState(true);
   const [workoutState, setWorkoutState] = useState<WorkoutSprintsStateType>('STOPPED');
   const [workoutType, setWorkoutType] = useState<WorkoutTypes>('Sprints');
+  const [open, setOpen] = useState(false);
+  const [workouts, setWorkouts] = useState([
+    { label: 'Sprints', value: 'Sprints' },
+    { label: 'Hill Sprints', value: 'HillSprints' }
+  ]);
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -114,22 +121,33 @@ function App(): JSX.Element {
     if (workoutState === 'STOPPED') {
       setWorkoutState('RAMPUP');
       setCalcSpeed(maxSpeed);
+
+      if (workoutType === 'HillSprints') {
+        setCalcIncline(hillIncline);
+      }
+
       state_change = true;
     } else if (workoutState === 'RAMPUP') {
       if (heartRate >= maxHR) {
         setWorkoutState('RAMPDOWN');
         setCalcSpeed(restSpeed);
+        setCalcIncline(0);
         state_change = true;
       } else {
         setCalcSpeed(maxSpeed);
+        if (workoutType === 'HillSprints') {
+          setCalcIncline(hillIncline);
+        }
       }
     } else if (workoutState === 'RAMPDOWN') {
       if (heartRate <= restHR) {
         setWorkoutState('RAMPUP');
         setCalcSpeed(maxSpeed);
+        setCalcIncline(hillIncline);
         state_change = true;
       } else {
         setCalcSpeed(restSpeed);
+        setCalcIncline(0);
       }
     } else { // STARTING
       // Do nothing
@@ -140,13 +158,8 @@ function App(): JSX.Element {
 
   const newSpeed = () => {
     const currentTime = Date.now();
-    let state_change = false;
 
-    if(workoutType === 'Sprints') {
-       state_change = workoutSprints();
-    } else if (workoutType === 'HillSprints') {
-      
-    }
+    const state_change = workoutSprints();
 
 
     if (state_change || !lastCalled || currentTime - lastCalled > 10000) {
@@ -177,7 +190,7 @@ function App(): JSX.Element {
   const increaseSpeed = () => {
     setMaxSpeed(prevSpeed => Math.min(prevSpeed + 0.5, 10)); // Increases by 0.5, max speed set to 10
   };
-  
+
   const decreaseSpeed = () => {
     setMaxSpeed(prevSpeed => Math.max(prevSpeed - 0.5, 0)); // Decreases by 0.5, min speed set to 0
   };
@@ -211,6 +224,7 @@ function App(): JSX.Element {
     setRestHR(130);
     setMaxSpeed(6.5);
     setRestSpeed(3.0);
+    setHillIncline(4);
     requestPermissions();
   }, [requestPermissions]);
 
@@ -242,12 +256,24 @@ function App(): JSX.Element {
           <Section title="Treadmill Status">
             Speed: {calcSpeed} Incline: 0
           </Section>
+          <Section title="Workout">
+            {workoutType.toString()}
+          </Section>
           <Section title="Settings">
             <View style={{ flexDirection: 'column' }}>
               <Text>Max HR: {maxHR}</Text>
               <Text>Rest HR: {restHR}</Text>
               <Text>Max Speed: {maxSpeed}</Text>
               <Text>Rest Speed: {restSpeed}</Text>
+              <Text>Hill Incline: {hillIncline}</Text>
+              <DropDownPicker
+                open={open}
+                value={workoutType}
+                items={workouts}
+                setOpen={setOpen}
+                setValue={setWorkoutType}
+                setItems={setWorkouts}
+              />
             </View>
           </Section>
           <Button title="Settings" onPress={toggleSettings} />
@@ -257,6 +283,7 @@ function App(): JSX.Element {
               restHR={restHR}
               maxSpeed={maxSpeed}
               restSpeed={restSpeed}
+              hillIncline={hillIncline}
               onSave={saveSettings}
             />
           ) : null}

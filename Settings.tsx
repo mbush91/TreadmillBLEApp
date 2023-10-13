@@ -9,6 +9,7 @@ function Settings(props) {
   const [restHR, setRestHR] = useState(props.restHR || 0);
   const [maxSpeed, setMaxSpeed] = useState(props.maxSpeed || 0);
   const [restSpeed, setRestSpeed] = useState(props.restSpeed || 0);
+  const [hillIncline, setHillIncline] = useState(props.hillIncline || 0);
 
   const handleSave = () => {
     // Pass the settings back to the parent
@@ -36,6 +37,11 @@ function Settings(props) {
         value={String(restSpeed)}
         onChangeText={setRestSpeed}
         placeholder="Rest Speed"
+      />
+      <TextInput
+        value={String(hillIncline)}
+        onChangeText={setHillIncline}
+        placeholder="Hill Incline"
       />
       <Button title="Save Settings" onPress={handleSave} />
     </>

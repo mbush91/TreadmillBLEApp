@@ -12,7 +12,8 @@
   "dependencies": {
     "react": "18.2.0",
     "react-native": "0.71.8",
-    "react-native-ble-plx": "^2.0.3"
+    "react-native-ble-plx": "^2.0.3",
+    "react-native-dropdown-picker": "^5.4.6"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
