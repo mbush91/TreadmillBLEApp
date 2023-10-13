@@ -6,10 +6,10 @@
  */
 
 import React from 'react';
-import type { PropsWithChildren } from 'react';
-import { BleManager, Device } from 'react-native-ble-plx';
-import { useEffect, useState, useCallback } from 'react';
-import { FlatList, Button, TextInput } from 'react-native';
+import type {PropsWithChildren} from 'react';
+import {BleManager, Device} from 'react-native-ble-plx';
+import {useEffect, useState, useCallback} from 'react';
+import {FlatList, Button, TextInput} from 'react-native';
 import Treadmill from './Treadmill';
 import useBLEApi from './BLE';
 import Settings from './Settings';
@@ -36,7 +36,7 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({ children, title }: SectionProps): JSX.Element {
+function Section({children, title}: SectionProps): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
@@ -94,35 +94,39 @@ function App(): JSX.Element {
     setIsSettingsVisible(!isSettingsVisible);
   };
 
-  const saveSettings = (newSettings) => {
+  const saveSettings = newSettings => {
     setMaxHR(newSettings.maxHR);
     setRestHR(newSettings.restHR);
     setMaxSpeed(newSettings.maxSpeed);
     setRestSpeed(newSettings.restSpeed);
-    toggleSettings();  // Close the settings after saving
+    toggleSettings(); // Close the settings after saving
   };
 
+  const workoutSprints = () => {
+    if (isHRRampUp) {
+      if (heartRate < maxHR) {
+        setCalcSpeed(maxSpeed);
+      } else {
+        setIsHRRampUp(false);
+        setCalcSpeed(restSpeed);
+      }
+    } else {
+      // HR is ramping down
+      if (heartRate > restHR) {
+        setCalcSpeed(restSpeed);
+      } else {
+        // Heart rate is below restHR
+        setIsHRRampUp(true);
+        setCalcSpeed(maxSpeed);
+      }
+    }
+  };
 
   const newSpeed = () => {
     const currentTime = Date.now();
 
     if (!lastCalled || currentTime - lastCalled > 15000) {
-
-      if (isHRRampUp) {
-        if (heartRate < maxHR) {
-          setCalcSpeed(maxSpeed);
-        } else {
-          setIsHRRampUp(false);
-          setCalcSpeed(restSpeed);
-        }
-      } else { // HR is ramping down
-        if (heartRate > restHR) {
-          setCalcSpeed(restSpeed);
-        } else { // Heart rate is below restHR
-          setIsHRRampUp(true);
-          setCalcSpeed(maxSpeed);
-        }
-      }
+      workoutSprints();
 
       updateTreadmillSpeed(calcSpeed * 10.0);
       setLastCalled(currentTime);
@@ -137,12 +141,12 @@ function App(): JSX.Element {
       setIsStopwatchRunning(false); // Stop the stopwatch
     } else {
       setIsStopwatchRunning(true); // Start the stopwatch
-      setElapsedTime(0)
+      setElapsedTime(0);
       scanHRDevice(); // continue with your logic
     }
   };
 
-  const formatTime = (time) => {
+  const formatTime = time => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -160,7 +164,7 @@ function App(): JSX.Element {
 
     if (isStopwatchRunning) {
       interval = setInterval(() => {
-        setElapsedTime((prevTime) => prevTime + 1);
+        setElapsedTime(prevTime => prevTime + 1);
       }, 1000); // update every second
     }
 
@@ -188,26 +192,25 @@ function App(): JSX.Element {
           }}>
           {/* Button to Scan and Connect */}
           <Section title="Workout Timer">
-            <Text style={{ fontSize: 40 }}>{formatTime(elapsedTime)}</Text>
+            <Text style={{fontSize: 40}}>{formatTime(elapsedTime)}</Text>
           </Section>
           <Button
-            title={isStopwatchRunning ? "Stop Workout" : "Start Workout"}
+            title={isStopwatchRunning ? 'Stop Workout' : 'Start Workout'}
             onPress={toggleWorkout}
           />
           <Section title="Heart Rate">Heart Rate: {heartRate}</Section>
-          <Section title="Treadmill Status">Speed: {calcSpeed} Incline: 0</Section>
+          <Section title="Treadmill Status">
+            Speed: {calcSpeed} Incline: 0
+          </Section>
           <Section title="Settings">
-            <View style={{ flexDirection: 'column' }}>
+            <View style={{flexDirection: 'column'}}>
               <Text>Max HR: {maxHR}</Text>
               <Text>Rest HR: {restHR}</Text>
               <Text>Max Speed: {maxSpeed}</Text>
               <Text>Rest Speed: {restSpeed}</Text>
             </View>
           </Section>
-          <Button
-            title="Settings"
-            onPress={toggleSettings}
-          />
+          <Button title="Settings" onPress={toggleSettings} />
           {isSettingsVisible ? (
             <Settings
               maxHR={maxHR}

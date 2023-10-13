@@ -1,7 +1,7 @@
 // Settings.tsx
 
-import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet } from 'react-native';
+import React, {useState} from 'react';
+import {View, TextInput, Button, StyleSheet} from 'react-native';
 
 function Settings(props) {
   // Assuming these are the settings you want to modify
@@ -12,7 +12,7 @@ function Settings(props) {
 
   const handleSave = () => {
     // Pass the settings back to the parent
-    props.onSave({ maxHR, restHR, maxSpeed, restSpeed });
+    props.onSave({maxHR, restHR, maxSpeed, restSpeed});
   };
 
   return (
