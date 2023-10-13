@@ -30,6 +30,7 @@ function useBLEApi(): BLEApi {
     const manager = useMemo(() => new BleManager(), []);
     const [connectedTreadmill, setConnectedTreadmill] = useState<Device | null>(null);
     const [connectedDevices, setConnectedDevices] = useState<Device[]>([]);
+    const [subscriptions, setSubscriptions] = useState<any[]>([]);
 
     const uint8ArrayToBase64 = (data: Uint8Array): string => {
         return Buffer.from(data).toString('base64');
@@ -42,6 +43,7 @@ function useBLEApi(): BLEApi {
             writeToTreadmill(connectedTreadmill, newSpeed);
         } else {
             // If not, we start the scan and then write the new speed
+            console.log('Scan for Treadmill');
             manager.startDeviceScan(null, null, (error, device) => {
                 if (error) {
                     console.log('Error during scan:', error);
@@ -71,10 +73,12 @@ function useBLEApi(): BLEApi {
     const writeToTreadmill = (device: Device, newSpeed: number) => {
         device.discoverAllServicesAndCharacteristics()
             .then(() => {
+                console.log('discovered all services and characteristics');
                 return device.characteristicsForService(treadmilService);
             })
             .then(characteristics => {
-                console.log('characteristics', characteristics);
+                //console.log('characteristics', characteristics);
+                console.log('writing speed to treadmill: ', newSpeed);
                 return device.writeCharacteristicWithResponseForService(
                     treadmilService,
                     treadmilWrite,
@@ -86,6 +90,7 @@ function useBLEApi(): BLEApi {
             })
             .catch(err => {
                 console.warn('Error', err);
+                setConnectedTreadmill(null);
             });
     };
 
@@ -145,7 +150,7 @@ function useBLEApi(): BLEApi {
                     .then(device => {
                         console.log('Monitoring for characteristic updates...');
                         if (device.id === smartWatchMac) {
-                            device.monitorCharacteristicForService(
+                            const subscription = device.monitorCharacteristicForService(
                                 '180D',
                                 '2A37',
                                 (error, characteristic) => {
@@ -159,6 +164,7 @@ function useBLEApi(): BLEApi {
                                     }
                                 },
                             );
+                            setSubscriptions(prevSubs => [...prevSubs, subscription]);
                         }
                     })
                     .catch(error => {
@@ -172,8 +178,14 @@ function useBLEApi(): BLEApi {
     };
 
     const endSession = () => {
+
+        subscriptions.forEach(subscription => {
+            subscription.remove();
+        });
+        setSubscriptions([]);
+
         connectedDevices.forEach(device => {
-            device.disconnect()
+            device.cancelConnection()
                 .then(() => {
                     console.log(`Disconnected from device: ${device.id}`);
                 })
@@ -184,6 +196,7 @@ function useBLEApi(): BLEApi {
 
         // Clear the list of connected devices
         setConnectedDevices([]);
+        setConnectedTreadmill(null);
     };
 
 

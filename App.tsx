@@ -62,6 +62,8 @@ function Section({children, title}: SectionProps): JSX.Element {
   );
 }
 
+type WorkoutSprintsStateType = "STARTING" | "RAMPUP" | "RAMPDOWN" | "STOPPED";
+
 function App(): JSX.Element {
   const {
     scanTreadmillDevice,
@@ -70,6 +72,7 @@ function App(): JSX.Element {
     updateTreadmillSpeed,
     scanHRDevice,
     requestPermissions,
+    endSession,
     heartRate,
     setSpeed,
   } = useBLEApi();
@@ -82,9 +85,9 @@ function App(): JSX.Element {
   const [restSpeed, setRestSpeed] = useState<number>(0);
   const isDarkMode = useColorScheme() === 'dark';
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
-  const [isHRRampUp, setIsHRRampUp] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isSettingsVisible, setIsSettingsVisible] = useState(true);
+  const [workoutState, setWorkoutState] = useState<WorkoutSprintsStateType>('STOPPED');
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -103,31 +106,37 @@ function App(): JSX.Element {
   };
 
   const workoutSprints = () => {
-    if (isHRRampUp) {
-      if (heartRate < maxHR) {
-        setCalcSpeed(maxSpeed);
-      } else {
-        setIsHRRampUp(false);
+    let state_change = false;
+
+    if (workoutState === 'STOPPED') {
+      setWorkoutState('RAMPUP');
+      setCalcSpeed(maxSpeed);
+      state_change = true;
+    } else if (workoutState === 'RAMPUP') {
+      if (heartRate > maxHR) {
+        setWorkoutState('RAMPDOWN');
         setCalcSpeed(restSpeed);
+        state_change = true;
       }
-    } else {
-      // HR is ramping down
-      if (heartRate > restHR) {
-        setCalcSpeed(restSpeed);
-      } else {
-        // Heart rate is below restHR
-        setIsHRRampUp(true);
+    } else if (workoutState === 'RAMPDOWN') {
+      if (heartRate < restHR) {
+        setWorkoutState('RAMPUP');
         setCalcSpeed(maxSpeed);
+        state_change = true;
       }
+    } else { // STARTING
+      // Do nothing
     }
+
+    return state_change;
   };
 
   const newSpeed = () => {
     const currentTime = Date.now();
 
-    if (!lastCalled || currentTime - lastCalled > 15000) {
-      workoutSprints();
+    const state_change = workoutSprints();
 
+    if (state_change || !lastCalled || currentTime - lastCalled > 15000) {
       updateTreadmillSpeed(calcSpeed * 10.0);
       setLastCalled(currentTime);
       console.log('Called newSpeed');
@@ -139,10 +148,10 @@ function App(): JSX.Element {
   const toggleWorkout = () => {
     if (isStopwatchRunning) {
       setIsStopwatchRunning(false); // Stop the stopwatch
+      endSession();
     } else {
-      setIsStopwatchRunning(true); // Start the stopwatch
-      setElapsedTime(0);
-      scanHRDevice(); // continue with your logic
+      console.log('Starting Workout...');
+      scanHRDevice();
     }
   };
 
@@ -153,9 +162,14 @@ function App(): JSX.Element {
   };
 
   useEffect(() => {
-    if (heartRate !== null) {
+    if (heartRate !== null && heartRate !== 0) {
       console.log('Heart rate data changed:', heartRate);
       newSpeed();
+
+      if (!isStopwatchRunning) {
+        setIsStopwatchRunning(true);
+        setElapsedTime(0);
+      }
     }
   }, [heartRate]); // This useEffect runs every time heartRate changes
 
