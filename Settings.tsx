@@ -13,7 +13,7 @@ function Settings(props) {
 
   const handleSave = () => {
     // Pass the settings back to the parent
-    props.onSave({maxHR, restHR, maxSpeed, restSpeed});
+    props.onSave({maxHR, restHR, maxSpeed, restSpeed, hillIncline});
   };
 
   return (
