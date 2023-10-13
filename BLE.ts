@@ -37,10 +37,10 @@ function useBLEApi(): BLEApi {
     };
 
 
-    const updateTreadmillSpeed = (newSpeed: number) => {
+    const updateTreadmill = (newSpeed: number, newIncline: number) => {
         if (connectedTreadmill) {
             // If we have a connected device, just write the new speed to it
-            writeToTreadmill(connectedTreadmill, newSpeed);
+            writeToTreadmill(connectedTreadmill, newSpeed, newIncline);
         } else {
             // If not, we start the scan and then write the new speed
             console.log('Scan for Treadmill');
@@ -60,7 +60,7 @@ function useBLEApi(): BLEApi {
                         .then(() => {
                             setConnectedDevices(prevDevices => [...prevDevices, device]);
                             setConnectedTreadmill(device);  // Save the connected device
-                            writeToTreadmill(device, newSpeed);
+                            writeToTreadmill(device, newSpeed, newIncline);
                         })
                         .catch(err => {
                             console.warn('Error', err);
@@ -70,7 +70,7 @@ function useBLEApi(): BLEApi {
         }
     };
 
-    const writeToTreadmill = (device: Device, newSpeed: number) => {
+    const writeToTreadmill = (device: Device, newSpeed: number, newIncline: number) => {
         device.discoverAllServicesAndCharacteristics()
             .then(() => {
                 console.log('discovered all services and characteristics');
@@ -83,6 +83,15 @@ function useBLEApi(): BLEApi {
                     treadmilService,
                     treadmilWrite,
                     uint8ArrayToBase64(Treadmill.setSpeed(0, newSpeed)),
+                );
+            })
+            .then(() => {
+                //console.log('characteristics', characteristics);
+                console.log('writing incline to treadmill: ', newSpeed);
+                return device.writeCharacteristicWithResponseForService(
+                    treadmilService,
+                    treadmilWrite,
+                    uint8ArrayToBase64(Treadmill.setIncline(newIncline)),
                 );
             })
             .then(() => {
@@ -236,7 +245,7 @@ function useBLEApi(): BLEApi {
     return {
         scanTreadmillDevice,
         connectDevice,
-        updateTreadmillSpeed,
+        updateTreadmill,
         scanHRDevice,
         requestPermissions,
         heartRate,

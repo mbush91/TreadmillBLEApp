@@ -6,10 +6,10 @@
  */
 
 import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {BleManager, Device} from 'react-native-ble-plx';
-import {useEffect, useState, useCallback} from 'react';
-import {FlatList, Button, TextInput} from 'react-native';
+import type { PropsWithChildren } from 'react';
+import { BleManager, Device } from 'react-native-ble-plx';
+import { useEffect, useState, useCallback } from 'react';
+import { FlatList, Button, TextInput } from 'react-native';
 import Treadmill from './Treadmill';
 import useBLEApi from './BLE';
 import Settings from './Settings';
@@ -36,7 +36,7 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({children, title}: SectionProps): JSX.Element {
+function Section({ children, title }: SectionProps): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
@@ -62,6 +62,7 @@ function Section({children, title}: SectionProps): JSX.Element {
   );
 }
 
+type WorkoutTypes = "Sprints" | "HillSprints";
 type WorkoutSprintsStateType = "STARTING" | "RAMPUP" | "RAMPDOWN" | "STOPPED";
 
 function App(): JSX.Element {
@@ -69,7 +70,7 @@ function App(): JSX.Element {
     scanTreadmillDevice,
     connectDevice,
     disconnectFromDevice,
-    updateTreadmillSpeed,
+    updateTreadmill,
     scanHRDevice,
     requestPermissions,
     endSession,
@@ -79,6 +80,7 @@ function App(): JSX.Element {
 
   const [lastCalled, setLastCalled] = useState<number | null>(null);
   const [calcSpeed, setCalcSpeed] = useState<number>(0);
+  const [calcIncline, setCalcIncline] = useState<number>(0);
   const [restHR, setRestHR] = useState<number>(0);
   const [maxHR, setMaxHR] = useState<number>(0);
   const [maxSpeed, setMaxSpeed] = useState<number>(0);
@@ -88,6 +90,7 @@ function App(): JSX.Element {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isSettingsVisible, setIsSettingsVisible] = useState(true);
   const [workoutState, setWorkoutState] = useState<WorkoutSprintsStateType>('STOPPED');
+  const [workoutType, setWorkoutType] = useState<WorkoutTypes>('Sprints');
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -113,16 +116,20 @@ function App(): JSX.Element {
       setCalcSpeed(maxSpeed);
       state_change = true;
     } else if (workoutState === 'RAMPUP') {
-      if (heartRate > maxHR) {
+      if (heartRate >= maxHR) {
         setWorkoutState('RAMPDOWN');
         setCalcSpeed(restSpeed);
         state_change = true;
+      } else {
+        setCalcSpeed(maxSpeed);
       }
     } else if (workoutState === 'RAMPDOWN') {
-      if (heartRate < restHR) {
+      if (heartRate <= restHR) {
         setWorkoutState('RAMPUP');
         setCalcSpeed(maxSpeed);
         state_change = true;
+      } else {
+        setCalcSpeed(restSpeed);
       }
     } else { // STARTING
       // Do nothing
@@ -133,11 +140,17 @@ function App(): JSX.Element {
 
   const newSpeed = () => {
     const currentTime = Date.now();
+    let state_change = false;
 
-    const state_change = workoutSprints();
+    if(workoutType === 'Sprints') {
+       state_change = workoutSprints();
+    } else if (workoutType === 'HillSprints') {
+      
+    }
 
-    if (state_change || !lastCalled || currentTime - lastCalled > 15000) {
-      updateTreadmillSpeed(calcSpeed * 10.0);
+
+    if (state_change || !lastCalled || currentTime - lastCalled > 10000) {
+      updateTreadmill(calcSpeed * 10.0, calcIncline);
       setLastCalled(currentTime);
       console.log('Called newSpeed');
     } else {
@@ -159,6 +172,14 @@ function App(): JSX.Element {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const increaseSpeed = () => {
+    setMaxSpeed(prevSpeed => Math.min(prevSpeed + 0.5, 10)); // Increases by 0.5, max speed set to 10
+  };
+  
+  const decreaseSpeed = () => {
+    setMaxSpeed(prevSpeed => Math.max(prevSpeed - 0.5, 0)); // Decreases by 0.5, min speed set to 0
   };
 
   useEffect(() => {
@@ -206,8 +227,13 @@ function App(): JSX.Element {
           }}>
           {/* Button to Scan and Connect */}
           <Section title="Workout Timer">
-            <Text style={{fontSize: 40}}>{formatTime(elapsedTime)}</Text>
+            <Text style={{ fontSize: 40 }}>{formatTime(elapsedTime)}</Text>
           </Section>
+          <View style={styles.arrowContainer}>
+            <Text style={styles.sectionTitle}>Run Speed: {maxSpeed} </Text>
+            <Button title="▲" onPress={increaseSpeed} />
+            <Button title="▼" onPress={decreaseSpeed} />
+          </View>
           <Button
             title={isStopwatchRunning ? 'Stop Workout' : 'Start Workout'}
             onPress={toggleWorkout}
@@ -217,7 +243,7 @@ function App(): JSX.Element {
             Speed: {calcSpeed} Incline: 0
           </Section>
           <Section title="Settings">
-            <View style={{flexDirection: 'column'}}>
+            <View style={{ flexDirection: 'column' }}>
               <Text>Max HR: {maxHR}</Text>
               <Text>Rest HR: {restHR}</Text>
               <Text>Max Speed: {maxSpeed}</Text>
@@ -262,6 +288,12 @@ const styles = StyleSheet.create({
     margin: 12,
     borderWidth: 1,
     padding: 10,
+  },
+  arrowContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 10,
   },
 });
 
