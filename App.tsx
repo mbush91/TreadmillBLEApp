@@ -185,7 +185,7 @@ function App(): JSX.Element {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
-      <View style={backgroundStyle}>
+      <ScrollView style={backgroundStyle}>
         <View
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
@@ -221,7 +221,7 @@ function App(): JSX.Element {
             />
           ) : null}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
