@@ -195,6 +195,14 @@ function App(): JSX.Element {
     setMaxSpeed(prevSpeed => Math.max(prevSpeed - 0.5, 0)); // Decreases by 0.5, min speed set to 0
   };
 
+  const increaseIncline = () => {
+    setHillIncline(prevHillIncline => Math.min(prevHillIncline + 1, 10)); // Increases by 0.5, max speed set to 10
+  };
+
+  const decreaseIncline = () => {
+    setHillIncline(prevHillIncline => Math.max(prevHillIncline - 1, 0)); // Decreases by 0.5, min speed set to 0
+  };
+
   useEffect(() => {
     if (heartRate !== null && heartRate !== 0) {
       console.log('Heart rate data changed:', heartRate);
@@ -248,6 +256,15 @@ function App(): JSX.Element {
             <Button title="▲" onPress={increaseSpeed} />
             <Button title="▼" onPress={decreaseSpeed} />
           </View>
+          {workoutType === 'HillSprints' ? (
+            <>
+              <View style={styles.arrowContainer}>
+                <Text style={styles.sectionTitle}>Incline: {hillIncline} </Text>
+                <Button title="▲" onPress={increaseIncline} />
+                <Button title="▼" onPress={decreaseIncline} />
+              </View>
+            </>
+          ) : null}
           <Button
             title={isStopwatchRunning ? 'Stop Workout' : 'Start Workout'}
             onPress={toggleWorkout}
