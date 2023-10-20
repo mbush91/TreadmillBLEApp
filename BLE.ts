@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { PermissionsAndroid } from 'react-native';
 import { Buffer } from 'buffer';
 import Treadmill from './Treadmill';
+import { postToAPI } from './TreadMillDataApi';
 
 interface BLEApi {
     requestPermissions: () => Promise<boolean>;
@@ -95,6 +96,7 @@ function useBLEApi(): BLEApi {
                 );
             })
             .then(() => {
+                postToAPI({newSpeed: newSpeed, newIncline: newIncline});
                 console.log('wrote to treadmill');
             })
             .catch(err => {

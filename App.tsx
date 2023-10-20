@@ -6,14 +6,15 @@
  */
 
 import React from 'react';
-import type { PropsWithChildren } from 'react';
-import { BleManager, Device } from 'react-native-ble-plx';
-import { useEffect, useState, useCallback } from 'react';
-import { FlatList, Button, TextInput } from 'react-native';
+import type {PropsWithChildren} from 'react';
+import {BleManager, Device} from 'react-native-ble-plx';
+import {useEffect, useState, useCallback} from 'react';
+import {FlatList, Button, TextInput} from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import Treadmill from './Treadmill';
 import useBLEApi from './BLE';
 import Settings from './Settings';
+import { postToAPI } from './TreadMillDataApi';
 
 import {
   SafeAreaView,
@@ -37,7 +38,7 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({ children, title }: SectionProps): JSX.Element {
+function Section({children, title}: SectionProps): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
@@ -63,8 +64,8 @@ function Section({ children, title }: SectionProps): JSX.Element {
   );
 }
 
-type WorkoutTypes = "Sprints" | "HillSprints";
-type WorkoutSprintsStateType = "STARTING" | "RAMPUP" | "RAMPDOWN" | "STOPPED";
+type WorkoutTypes = 'Sprints' | 'HillSprints';
+type WorkoutSprintsStateType = 'STARTING' | 'RAMPUP' | 'RAMPDOWN' | 'STOPPED';
 
 function App(): JSX.Element {
   const {
@@ -91,12 +92,13 @@ function App(): JSX.Element {
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isSettingsVisible, setIsSettingsVisible] = useState(true);
-  const [workoutState, setWorkoutState] = useState<WorkoutSprintsStateType>('STOPPED');
+  const [workoutState, setWorkoutState] =
+    useState<WorkoutSprintsStateType>('STOPPED');
   const [workoutType, setWorkoutType] = useState<WorkoutTypes>('Sprints');
   const [open, setOpen] = useState(false);
   const [workouts, setWorkouts] = useState([
-    { label: 'Sprints', value: 'Sprints' },
-    { label: 'Hill Sprints', value: 'HillSprints' }
+    {label: 'Sprints', value: 'Sprints'},
+    {label: 'Hill Sprints', value: 'HillSprints'},
   ]);
 
   const backgroundStyle = {
@@ -119,6 +121,7 @@ function App(): JSX.Element {
     let state_change = false;
 
     if (workoutState === 'STOPPED') {
+      postToAPI({workoutState: 'RAMPUP'});
       setWorkoutState('RAMPUP');
       setCalcSpeed(maxSpeed);
 
@@ -129,6 +132,7 @@ function App(): JSX.Element {
       state_change = true;
     } else if (workoutState === 'RAMPUP') {
       if (heartRate >= maxHR) {
+        postToAPI({workoutState: 'RAMPDOWN'});
         setWorkoutState('RAMPDOWN');
         setCalcSpeed(restSpeed);
         setCalcIncline(0);
@@ -142,6 +146,7 @@ function App(): JSX.Element {
     } else if (workoutState === 'RAMPDOWN') {
       if (heartRate <= restHR) {
         setWorkoutState('RAMPUP');
+        postToAPI({workoutState: 'RAMPUP'});
         setCalcSpeed(maxSpeed);
         setCalcIncline(hillIncline);
         state_change = true;
@@ -149,7 +154,8 @@ function App(): JSX.Element {
         setCalcSpeed(restSpeed);
         setCalcIncline(0);
       }
-    } else { // STARTING
+    } else {
+      // STARTING
       // Do nothing
     }
 
@@ -161,8 +167,8 @@ function App(): JSX.Element {
 
     const state_change = workoutSprints();
 
-
     if (state_change || !lastCalled || currentTime - lastCalled > 10000) {
+      postToAPI({updateSpeed: calcSpeed, updateIncline: calcIncline});
       updateTreadmill(calcSpeed * 10.0, calcIncline);
       setLastCalled(currentTime);
       console.log('Called newSpeed');
@@ -206,6 +212,7 @@ function App(): JSX.Element {
   useEffect(() => {
     if (heartRate !== null && heartRate !== 0) {
       console.log('Heart rate data changed:', heartRate);
+      postToAPI({heartRate: heartRate});
       newSpeed();
 
       if (!isStopwatchRunning) {
@@ -249,7 +256,7 @@ function App(): JSX.Element {
           }}>
           {/* Button to Scan and Connect */}
           <Section title="Workout Timer">
-            <Text style={{ fontSize: 40 }}>{formatTime(elapsedTime)}</Text>
+            <Text style={{fontSize: 40}}>{formatTime(elapsedTime)}</Text>
           </Section>
           <View style={styles.arrowContainer}>
             <Text style={styles.sectionTitle}>Run Speed: {maxSpeed} </Text>
@@ -273,11 +280,9 @@ function App(): JSX.Element {
           <Section title="Treadmill Status">
             Speed: {calcSpeed} Incline: 0
           </Section>
-          <Section title="Workout">
-            {workoutType.toString()}
-          </Section>
+          <Section title="Workout">{workoutType.toString()}</Section>
           <Section title="Settings">
-            <View style={{ flexDirection: 'column' }}>
+            <View style={{flexDirection: 'column'}}>
               <Text>Max HR: {maxHR}</Text>
               <Text>Rest HR: {restHR}</Text>
               <Text>Max Speed: {maxSpeed}</Text>
