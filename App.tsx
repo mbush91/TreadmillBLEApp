@@ -91,7 +91,7 @@ function App(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [isSettingsVisible, setIsSettingsVisible] = useState(true);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [workoutState, setWorkoutState] =
     useState<WorkoutSprintsStateType>('STOPPED');
   const [workoutType, setWorkoutType] = useState<WorkoutTypes>('Sprints');
@@ -236,10 +236,11 @@ function App(): JSX.Element {
 
   useEffect(() => {
     setMaxHR(175);
-    setRestHR(130);
+    setRestHR(155);
     setMaxSpeed(6.5);
     setRestSpeed(3.0);
-    setHillIncline(4);
+    setHillIncline(0);
+    setWorkoutType('HillSprints');
     requestPermissions();
   }, [requestPermissions]);
 
@@ -288,14 +289,6 @@ function App(): JSX.Element {
               <Text>Max Speed: {maxSpeed}</Text>
               <Text>Rest Speed: {restSpeed}</Text>
               <Text>Hill Incline: {hillIncline}</Text>
-              <DropDownPicker
-                open={open}
-                value={workoutType}
-                items={workouts}
-                setOpen={setOpen}
-                setValue={setWorkoutType}
-                setItems={setWorkouts}
-              />
             </View>
           </Section>
           <Button title="Settings" onPress={toggleSettings} />

@@ -13,7 +13,7 @@ export const postToAPI = async (dataToSend: any): Promise<string> => {
     });
     return response.data.message; // or whatever response field you want to return
   } catch (error) {
-    console.error('Error posting data:', error);
+    console.info('Error posting data:', error);
     return 'Failed to post data.';
   }
 };

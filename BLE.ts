@@ -166,7 +166,7 @@ function useBLEApi(): BLEApi {
                                 '2A37',
                                 (error, characteristic) => {
                                     if (error) {
-                                        console.error('Error monitoring characteristic:', error);
+                                        console.info('Error monitoring characteristic:', error);
                                         return;
                                     }
                                     if (characteristic && characteristic.value) {
